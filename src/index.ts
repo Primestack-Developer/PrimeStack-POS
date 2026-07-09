@@ -57,11 +57,19 @@ import {
   rejectPayout
 } from './logic/wallet.js';
 import { MerchantWalletModel, PayoutRequestModel } from './models/wallet.js';
+import {
+  AdminUserModel,
+  hashPassword,
+  verifyPassword,
+  hashPrivateKey,
+  seedAdminUser
+} from './models/adminUser.js';
+import { generateToken, requireAuth } from './middleware/auth.js';
 
 dotenv.config();
 
 // Connect to MongoDB
-connectMongo();
+connectMongo().then(() => seedAdminUser());
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -79,9 +87,104 @@ async function getTerminalSecret(terminal_id: string): Promise<string> {
 
 app.use(express.json());
 
-// Health check
+// ─────────────────────────────────────────────────────────────
+// Auth endpoints — public (no token required)
+// ─────────────────────────────────────────────────────────────
+
+// Login with email + password
+app.post('/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password required" });
+    }
+
+    const admin = await AdminUserModel.findOne({ email: email.toLowerCase() });
+    if (!admin) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const valid = await verifyPassword(password, admin.password_hash);
+    if (!valid) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    await AdminUserModel.updateOne({ email: email.toLowerCase() }, { last_login: new Date() });
+
+    const token = generateToken(admin.email);
+    res.json({ token, email: admin.email });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Recover access using private key (resets password)
+app.post('/auth/recover', async (req, res) => {
+  try {
+    const { private_key, new_password } = req.body;
+    if (!private_key || !new_password) {
+      return res.status(400).json({ error: "private_key and new_password required" });
+    }
+    if (new_password.length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters" });
+    }
+
+    const keyHash = hashPrivateKey(private_key);
+    const admin   = await AdminUserModel.findOne({ private_key_hash: keyHash });
+
+    if (!admin) {
+      return res.status(401).json({ error: "Invalid private key" });
+    }
+
+    const newHash = await hashPassword(new_password);
+    await AdminUserModel.updateOne(
+      { private_key_hash: keyHash },
+      { password_hash: newHash }
+    );
+
+    const token = generateToken(admin.email);
+    res.json({ message: "Password reset successful", token, email: admin.email });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Verify token is still valid
+app.get('/auth/verify', requireAuth, (req, res) => {
+  res.json({ valid: true, admin: (req as any).admin });
+});
+
+// Health check — always public
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', service: 'PrimeStack 101.6 Host' });
+});
+
+// ─────────────────────────────────────────────────────────────
+// Global auth middleware
+// Protects all routes EXCEPT: /health, /auth/*, /1016/*
+// POS terminals use HMAC — they do not use JWT
+// Dashboard uses JWT Bearer token
+// ─────────────────────────────────────────────────────────────
+app.use((req, res, next) => {
+  const open = [
+    '/health',
+    '/auth/login',
+    '/auth/recover',
+    '/auth/verify'
+  ];
+
+  // POS transaction endpoints — authenticated via HMAC, not JWT
+  if (req.path.startsWith('/1016/') || req.path.startsWith('/merchant/register')) {
+    return next();
+  }
+
+  // Public paths
+  if (open.includes(req.path)) {
+    return next();
+  }
+
+  // Everything else requires JWT
+  return requireAuth(req, res, next);
 });
 
 // Merchant registration endpoint

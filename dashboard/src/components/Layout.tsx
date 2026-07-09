@@ -1,5 +1,6 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { clearSession, getEmail } from "../api/auth";
 
 // PrimeStack Brand Colors
 const BRAND_PRIMARY = "#0052FF";
@@ -9,6 +10,12 @@ const BRAND_SUCCESS = "#00C853";
 const BRAND_DANGER = "#D50000";
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    clearSession();
+    navigate("/login");
+  };
   return (
     <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Inter', Arial, sans-serif" }}>
       <aside style={{ 
@@ -149,6 +156,34 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           >
             💸 Payouts
           </Link>
+
+          {/* ── Divider ── */}
+          <div style={{ borderTop: "1px solid #2a2a2a", margin: "8px 0" }} />
+
+          {/* Logged-in user + logout */}
+          <div style={{ padding: "8px 15px" }}>
+            <div style={{ fontSize: "11px", color: "#888", marginBottom: "8px" }}>
+              {getEmail()}
+            </div>
+            <button
+              onClick={handleLogout}
+              style={{
+                width: "100%",
+                padding: "10px 15px",
+                background: "transparent",
+                border: "1px solid #333",
+                color: "#fff",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontSize: "13px",
+                textAlign: "left"
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "#D50000"; e.currentTarget.style.borderColor = "#D50000"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "#333"; }}
+            >
+              🚪 Sign Out
+            </button>
+          </div>
         </nav>
       </aside>
       <main style={{ 
