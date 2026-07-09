@@ -1,7 +1,7 @@
 import axios from "axios";
 
 export const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || "http://localhost:4000"
+  baseURL: process.env.REACT_APP_API_URL || "https://primestack-pos.onrender.com"
 });
 
 // Attach JWT token to every request automatically

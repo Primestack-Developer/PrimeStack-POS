@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE = process.env.REACT_APP_API_URL || "http://localhost:4000";
+const BASE = process.env.REACT_APP_API_URL || "https://primestack-pos.onrender.com";
 
 export async function login(email: string, password: string) {
   const res = await axios.post(`${BASE}/auth/login`, { email, password });
