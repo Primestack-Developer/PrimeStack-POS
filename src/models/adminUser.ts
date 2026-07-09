@@ -36,21 +36,19 @@ export function hashPrivateKey(key: string): string {
 }
 
 export async function seedAdminUser(): Promise<void> {
-  const existing = await AdminUserModel.findOne({ email: "admin@primestack.com" });
-  if (existing) return; // already seeded
+  const email      = process.env.ADMIN_EMAIL    || "admin@primestack.com";
+  const existing   = await AdminUserModel.findOne({ email });
+  if (existing) return;
 
-  const privateKey   = process.env.ADMIN_PRIVATE_KEY || crypto.randomBytes(32).toString("hex");
-  const passwordHash = await hashPassword(process.env.ADMIN_PASSWORD || "changeme");
+  const privateKey   = process.env.ADMIN_PRIVATE_KEY || "4af5130083e8f7b200d4a1193c50818cb11dd786b13da2819d214f57e3c42287";
+  const passwordHash = await hashPassword(process.env.ADMIN_PASSWORD || "admin123");
   const pkHash       = hashPrivateKey(privateKey);
 
   await AdminUserModel.create({
-    email:            "admin@primestack.com",
+    email,
     password_hash:    passwordHash,
     private_key_hash: pkHash
   });
 
-  if (!process.env.ADMIN_PRIVATE_KEY) {
-    console.log("\n⚠️  ADMIN PRIVATE KEY (save this — shown only once):");
-    console.log(`   ${privateKey}\n`);
-  }
+  console.log(`✅  Admin user created: ${email}`);
 }

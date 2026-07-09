@@ -10,7 +10,7 @@ export const Login: React.FC = () => {
   const navigate = useNavigate();
 
   const [tab, setTab]         = useState<"login" | "recover">("login");
-  const [email, setEmail]     = useState("admin@primestack.com");
+  const [email, setEmail]     = useState("");
   const [password, setPassword] = useState("");
   const [privateKey, setPrivateKey] = useState("");
   const [newPassword, setNewPassword] = useState("");
