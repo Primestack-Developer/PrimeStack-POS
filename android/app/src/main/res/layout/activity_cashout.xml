@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/primestack_primary"
+        android:text="Cash-Out / Withdrawal"
+        android:textColor="@color/white"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:padding="16dp"
+        android:gravity="center" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="External Server ID"
+        android:textColor="@color/primestack_secondary"
+        android:textSize="14sp"
+        android:layout_marginTop="32dp" />
+
+    <EditText
+        android:id="@+id/serverIdInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="SRV-ABC123"
+        android:inputType="text"
+        android:padding="16dp"
+        android:background="@color/primestack_light_gray"
+        android:layout_marginTop="8dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="User ID on External Server"
+        android:textColor="@color/primestack_secondary"
+        android:textSize="14sp"
+        android:layout_marginTop="24dp" />
+
+    <EditText
+        android:id="@+id/userIdInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="USER-789"
+        android:inputType="text"
+        android:padding="16dp"
+        android:background="@color/primestack_light_gray"
+        android:layout_marginTop="8dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="The customer's balance will be debited from their own server. PrimeStack POS acts as the cash-out terminal."
+        android:textColor="@color/primestack_gray"
+        android:textSize="13sp"
+        android:layout_marginTop="24dp" />
+
+    <Button
+        android:id="@+id/btnCashOut"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Withdraw AED 0.00"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:padding="16dp"
+        android:background="@color/primestack_primary"
+        android:textColor="@color/white"
+        android:layout_marginTop="32dp" />
+
+</LinearLayout>

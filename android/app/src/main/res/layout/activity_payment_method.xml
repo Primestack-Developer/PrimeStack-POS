@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/primestack_primary"
+        android:text="Select Payment Method"
+        android:textColor="@color/white"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:padding="16dp"
+        android:gravity="center" />
+
+    <Button
+        android:id="@+id/btnTapToPay"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Tap to Pay (NFC)"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:padding="16dp"
+        android:background="@color/primestack_primary"
+        android:textColor="@color/white"
+        android:layout_marginTop="32dp" />
+
+    <Button
+        android:id="@+id/btnCardEntry"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Card Entry (MOTO)"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:padding="16dp"
+        android:background="@color/white"
+        android:textColor="@color/primestack_primary"
+        android:layout_marginTop="16dp" />
+
+    <Button
+        android:id="@+id/btnQrPayment"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="QR Payment"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:padding="16dp"
+        android:background="@color/white"
+        android:textColor="@color/primestack_gray"
+        android:layout_marginTop="16dp"
+        android:enabled="false" />
+
+    <Button
+        android:id="@+id/btnCash"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Cash"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:padding="16dp"
+        android:background="@color/white"
+        android:textColor="@color/primestack_gray"
+        android:layout_marginTop="16dp"
+        android:enabled="false" />
+
+</LinearLayout>

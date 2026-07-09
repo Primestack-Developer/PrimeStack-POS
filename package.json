@@ -1,0 +1,31 @@
+{
+  "name": "primestack-101.6",
+  "version": "1.0.0",
+  "description": "PrimeStack Protocol 101.6 Implementation",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts"
+  },
+  "keywords": [
+    "primestack",
+    "protocol",
+    "101.6"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.18.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mongoose": "^9.7.4"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.0",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.3"
+  }
+}

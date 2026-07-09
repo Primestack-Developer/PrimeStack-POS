@@ -1,0 +1,44 @@
+# Node modules
+node_modules/
+dist/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/keystore.properties
+android/*.keystore
+android/*.jks
+android/captures/
+android/.externalNativeBuild
+android/cxx/
+android/caches/
+android/.tmp/
+android/.idea/
+android/.kotlin/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+*.apk
+*.aab

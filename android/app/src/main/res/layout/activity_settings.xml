@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/primestack_primary"
+            android:text="Settings"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:padding="16dp"
+            android:gravity="center" />
+
+        <!-- Terminal info (populated from PrefsManager at runtime) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/primestack_light_gray"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:layout_marginTop="24dp">
+
+            <TextView
+                android:id="@+id/tvTerminalId"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Terminal: —"
+                android:textColor="@color/primestack_secondary"
+                android:textSize="15sp"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:id="@+id/tvMerchantId"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Merchant: —"
+                android:textColor="@color/primestack_secondary"
+                android:textSize="15sp"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:id="@+id/tvDeviceInfo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Merchant name: —"
+                android:textColor="@color/primestack_secondary"
+                android:textSize="15sp" />
+
+        </LinearLayout>
+
+        <!-- Server URL configuration -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Backend Server URL"
+            android:textColor="@color/primestack_secondary"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginTop="24dp" />
+
+        <EditText
+            android:id="@+id/etServerUrl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="https://api.yourserver.com"
+            android:inputType="textUri"
+            android:padding="14dp"
+            android:background="@color/primestack_light_gray"
+            android:layout_marginTop="8dp"
+            android:textSize="14sp" />
+
+        <Button
+            android:id="@+id/btnSaveUrl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Save URL"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:padding="14dp"
+            android:background="@color/primestack_primary"
+            android:textColor="@color/white"
+            android:layout_marginTop="8dp" />
+
+        <!-- Offline sync -->
+        <Button
+            android:id="@+id/btnSyncOffline"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Sync Offline Transactions"
+            android:textSize="15sp"
+            android:padding="16dp"
+            android:background="@color/primestack_light_gray"
+            android:textColor="@color/primestack_secondary"
+            android:layout_marginTop="24dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="App Version: 2.0"
+            android:textColor="@color/primestack_gray"
+            android:textSize="13sp"
+            android:layout_marginTop="16dp" />
+
+        <!-- Logout -->
+        <Button
+            android:id="@+id/btnLogout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Logout"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:padding="16dp"
+            android:background="@color/primestack_danger"
+            android:textColor="@color/white"
+            android:layout_marginTop="16dp" />
+
+    </LinearLayout>
+</ScrollView>

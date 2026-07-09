@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: primestack-101.6
+    runtime: node
+    region: singapore   # closest to UAE — change to "frankfurt" if preferred
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 4000
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false   # set this manually in Render dashboard — never commit to git
+      - key: TERMINAL_SECRET_KEY
+        sync: false   # set this manually in Render dashboard
+      - key: VAULT_KEY
+        sync: false   # set this manually in Render dashboard
+      - key: ALERT_WEBHOOK
+        value: ""

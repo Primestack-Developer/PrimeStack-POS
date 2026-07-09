@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- PrimeStack Brand Colors -->
+    <color name="primestack_primary">#0052FF</color>
+    <color name="primestack_secondary">#0A0A0A</color>
+    <color name="primestack_accent">#00D1FF</color>
+    <color name="primestack_success">#00C853</color>
+    <color name="primestack_danger">#D50000</color>
+    <color name="primestack_gray">#666666</color>
+    <color name="primestack_light_gray">#F5F5F5</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <!-- Material theme required colors -->
+    <color name="purple_500">#0052FF</color>
+    <color name="purple_700">#0039B3</color>
+    <color name="teal_200">#00D1FF</color>
+    <color name="teal_700">#0099CC</color>
+</resources>

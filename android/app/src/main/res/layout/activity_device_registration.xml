@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="32dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/primestack_primary"
+            android:text="Register This Device"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:padding="16dp"
+            android:gravity="center" />
+
+        <!-- Server URL — shown first so operator can set it before registering -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Server URL:"
+            android:textColor="@color/primestack_secondary"
+            android:textSize="14sp"
+            android:layout_marginTop="24dp" />
+
+        <EditText
+            android:id="@+id/serverUrlInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="http://192.168.x.x:4000"
+            android:inputType="textUri"
+            android:padding="16dp"
+            android:background="@drawable/border_edittext"
+            android:layout_marginTop="8dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Find your IP: open Command Prompt → type ipconfig → use IPv4 address"
+            android:textColor="@color/primestack_gray"
+            android:textSize="11sp"
+            android:layout_marginTop="4dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Device ID:"
+            android:textColor="@color/primestack_secondary"
+            android:textSize="14sp"
+            android:layout_marginTop="24dp" />
+
+        <EditText
+            android:id="@+id/terminalIdInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text"
+            android:padding="16dp"
+            android:background="@drawable/border_edittext"
+            android:layout_marginTop="8dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Merchant ID:"
+            android:textColor="@color/primestack_secondary"
+            android:textSize="14sp"
+            android:layout_marginTop="24dp" />
+
+        <EditText
+            android:id="@+id/merchantIdInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="MRC-10001"
+            android:inputType="text"
+            android:padding="16dp"
+            android:background="@drawable/border_edittext"
+            android:layout_marginTop="8dp" />
+
+        <Button
+            android:id="@+id/btnRegister"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="REGISTER DEVICE"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:padding="16dp"
+            android:background="@color/primestack_primary"
+            android:textColor="@color/white"
+            android:layout_marginTop="32dp" />
+
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Status: Not Registered"
+            android:textColor="@color/primestack_gray"
+            android:textSize="14sp"
+            android:layout_marginTop="24dp" />
+
+    </LinearLayout>
+</ScrollView>

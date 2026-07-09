@@ -1,0 +1,1302 @@
+import express from 'express';
+import dotenv from 'dotenv';
+import crypto from 'crypto';
+import { Protocol1016Request, Protocol1016Response } from './types/1016.js';
+import { CashOutRequest, CashOutResponse } from './types/cashout.js';
+import { verifyMessage, signMessage } from './security/hmac.js';
+import { MerchantModel } from './models/merchant.js';
+import { TransactionModel } from './models/transaction.js';
+import { ExternalIssuerModel } from './models/externalIssuer.js';
+import { CashOutTransactionModel } from './models/cashoutTransaction.js';
+import { connectMongo } from './db/mongo.js';
+import { 
+  generateDailySettlement, 
+  generateWeeklySettlement, 
+  generateMonthlySettlement,
+  exportToCSV,
+  exportToJSON
+} from './logic/settlement.js';
+import { reconcileBatch } from './logic/reconciliation.js';
+import { SettlementModel } from './models/settlement.js';
+import { ReconciliationModel } from './models/reconciliation.js';
+import { fraudCheck } from './logic/fraud.js';
+import { sendFraudAlert, sendSettlementAlert } from './utils/alerts.js';
+import { lookupBin } from './logic/binLookup.js';
+import { ChargebackModel } from './models/chargeback.js';
+import { convert } from './logic/currency.js';
+import { routeToAcquirer } from './logic/router.js';
+import { VaultModel } from './models/vault.js';
+import { encryptPAN } from './security/vault.js';
+import { riskScore } from './logic/risk.js';
+import { WebhookModel } from './models/webhook.js';
+import { sendWebhook } from './utils/webhook.js';
+import { callExternalIssuer } from './logic/cashout.js';
+import {
+  createOfflineWalletRecord,
+  syncOfflineWalletDebit,
+  voidOfflineWalletDebit,
+  getWalletState
+} from './logic/offlineWallet.js';
+import {
+  storeOffline,
+  getPending,
+  getPendingCount,
+  markSynced,
+  markFailed
+} from './pos/offlineQueue.js';
+import {
+  ensureWallet,
+  creditWallet,
+  reverseCredit,
+  debitWallet,
+  getWallet,
+  getWalletLedger,
+  requestPayout,
+  approvePayout,
+  completePayout,
+  rejectPayout
+} from './logic/wallet.js';
+import { MerchantWalletModel, PayoutRequestModel } from './models/wallet.js';
+
+dotenv.config();
+
+// Connect to MongoDB
+connectMongo();
+
+const app = express();
+const PORT = process.env.PORT || 4000;
+
+async function getTerminalSecret(terminal_id: string): Promise<string> {
+  const merchant = await MerchantModel.findOne({ "terminals.terminal_id": terminal_id, "terminals.status": "ACTIVE" });
+  if (merchant) {
+    const terminal = merchant.terminals.find(t => t.terminal_id === terminal_id && t.status === "ACTIVE");
+    if (terminal && terminal.secret_key) {
+      return terminal.secret_key;
+    }
+  }
+  return process.env.TERMINAL_SECRET_KEY || "default_key";
+}
+
+app.use(express.json());
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', service: 'PrimeStack 101.6 Host' });
+});
+
+// Merchant registration endpoint
+app.post('/merchant/register', async (req, res) => {
+  const { merchant_id, name, country, currency } = req.body;
+
+  if (!merchant_id || !name || !country || !currency) {
+    return res.status(400).json({ status: 'ERROR', message: 'Missing required fields' });
+  }
+
+  const existingMerchant = await MerchantModel.findOne({ merchant_id });
+  if (existingMerchant) {
+    return res.status(409).json({ status: 'ERROR', message: 'Merchant already exists' });
+  }
+
+  const merchant = await MerchantModel.create({
+    merchant_id,
+    name,
+    country,
+    currency,
+    terminals: []
+  });
+
+  // Auto-create a wallet for this merchant
+  await ensureWallet(merchant_id, name, currency);
+
+  res.json({
+    status: 'SUCCESS',
+    merchant_id,
+    message: 'Merchant registered successfully'
+  });
+});
+
+// Terminal registration endpoint
+app.post('/merchant/register-terminal', async (req, res) => {
+  const { merchant_id, terminal_id } = req.body;
+
+  if (!merchant_id || !terminal_id) {
+    return res.status(400).json({ status: 'ERROR', message: 'Missing required fields' });
+  }
+
+  const merchant = await MerchantModel.findOne({ merchant_id });
+  if (!merchant) {
+    return res.status(404).json({ status: 'ERROR', message: 'Merchant not found' });
+  }
+
+  const existingTerminal = merchant.terminals.find(t => t.terminal_id === terminal_id);
+  if (existingTerminal) {
+    return res.status(409).json({ status: 'ERROR', message: 'Terminal already exists' });
+  }
+
+  const secret = crypto.randomBytes(32).toString('hex');
+
+  merchant.terminals.push({
+    terminal_id,
+    secret_key: secret,
+    status: "ACTIVE"
+  });
+
+  await merchant.save();
+
+  res.json({
+    status: 'SUCCESS',
+    terminal_id,
+    secret_key: secret
+  });
+});
+
+// Dashboard endpoints
+app.get('/transactions', async (req, res) => {
+  const { merchant_id, terminal_id } = req.query;
+  let filter: any = {};
+  
+  if (merchant_id) filter["merchant.merchant_id"] = merchant_id;
+  if (terminal_id) filter["merchant.terminal_id"] = terminal_id;
+  
+  const transactions = await TransactionModel.find(filter).sort({ created_at: -1 });
+  res.json(transactions);
+});
+
+app.get('/transactions/:id', async (req, res) => {
+  const transaction = await TransactionModel.findById(req.params.id);
+  if (!transaction) {
+    return res.status(404).json({ error: "Transaction not found" });
+  }
+  res.json(transaction);
+});
+
+app.get('/merchants', async (req, res) => {
+  const merchants = await MerchantModel.find();
+  res.json(merchants);
+});
+
+app.get('/merchants/:id', async (req, res) => {
+  const merchant = await MerchantModel.findById(req.params.id);
+  if (!merchant) {
+    return res.status(404).json({ error: "Merchant not found" });
+  }
+  res.json(merchant);
+});
+
+app.get('/merchants/:merchant_id/terminals', async (req, res) => {
+  const merchant = await MerchantModel.findOne({ merchant_id: req.params.merchant_id });
+  if (!merchant) {
+    return res.status(404).json({ error: "Merchant not found" });
+  }
+  res.json(merchant.terminals);
+});
+
+// Chargeback API
+app.post('/chargeback/create', async (req, res) => {
+  try {
+    const { transaction_id, merchant_id, reason_code, description } = req.body;
+
+    const caseData = await ChargebackModel.create({
+      case_id: `CB-${Date.now()}`,
+      transaction_id,
+      merchant_id,
+      reason_code,
+      description,
+      status: "OPEN"
+    });
+
+    res.json({ status: "SUCCESS", case: caseData });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.get('/chargeback/:merchant_id', async (req, res) => {
+  try {
+    const chargebacks = await ChargebackModel.find({ merchant_id: req.params.merchant_id }).sort({ created_at: -1 });
+    res.json(chargebacks);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Webhook API
+app.post('/webhook/register', async (req, res) => {
+  try {
+    const { merchant_id, url } = req.body;
+    const webhook = await WebhookModel.create({ merchant_id, url });
+    res.json({ status: "SUCCESS", webhook });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.get('/webhook/:merchant_id', async (req, res) => {
+  try {
+    const webhook = await WebhookModel.findOne({ merchant_id: req.params.merchant_id });
+    res.json(webhook);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// 101.6 transaction endpoint
+app.post('/1016/transaction', async (req, res) => {
+  const msg = req.body as Protocol1016Request;
+
+  // 1. Verify protocol
+  if (msg.protocol !== "101.6") {
+    return res.status(400).json({ error: "Invalid protocol" });
+  }
+
+  // 2. Get terminal secret
+  const terminalSecret = await getTerminalSecret(msg.merchant.terminal_id);
+
+  // 3. Verify HMAC signature
+  const valid = verifyMessage(
+    { ...msg, security: undefined },
+    terminalSecret,
+    msg.security.signature
+  );
+
+  if (!valid) {
+    return res.status(401).json({ error: "Invalid HMAC signature" });
+  }
+
+  // 3.5. If the terminal was offline when the transaction was created,
+  //      store it in the persistent offline queue and return an OFFLINE_STORED response.
+  //      The /offline/sync endpoint will re-process these when the terminal comes back online.
+  if (msg.transaction_flags?.offline === true) {
+    await storeOffline(msg);
+    return res.json({
+      protocol:       "101.6",
+      message_type:   `${msg.message_type}_RESPONSE`,
+      transaction_id: msg.transaction_id,
+      timestamp:      new Date().toISOString(),
+      result: {
+        status:      "PENDING",
+        code:        "OF",
+        description: "Stored in offline queue — will be processed on next sync"
+      }
+    });
+  }
+
+  // 4. Fraud check
+  const fraud = await fraudCheck(msg);
+  
+  if (fraud.blocked) {
+    // Send fraud alert
+    sendFraudAlert({
+      merchant_id: msg.merchant.merchant_id,
+      transaction_id: msg.transaction_id,
+      reason: fraud.reason,
+      riskScore: fraud.riskScore
+    });
+
+    // Decline transaction due to fraud
+    const declineResponse: Protocol1016Response = {
+      protocol: "101.6",
+      message_type: `${msg.message_type}_RESPONSE`,
+      transaction_id: msg.transaction_id,
+      timestamp: new Date().toISOString(),
+      result: {
+        status: "DECLINED",
+        code: "F1",
+        description: fraud.reason || "Fraud detected"
+      }
+    };
+    
+    declineResponse.security = {
+      nonce: msg.security.nonce,
+      signature: signMessage({ ...declineResponse, security: undefined }, terminalSecret),
+      algorithm: "HMAC_SHA256"
+    };
+
+    // Save declined transaction
+    await TransactionModel.create({
+      ...msg,
+      result: declineResponse.result,
+      flags: { offline_stored: false, reversal_required: false },
+      security: declineResponse.security
+    });
+
+    return res.json(declineResponse);
+  }
+
+  // 4.5. Risk score check
+  const score = riskScore(msg);
+  if (score > 60) {
+    const declineResponse: Protocol1016Response = {
+      protocol: "101.6",
+      message_type: `${msg.message_type}_RESPONSE`,
+      transaction_id: msg.transaction_id,
+      timestamp: new Date().toISOString(),
+      result: {
+        status: "DECLINED",
+        code: "R1",
+        description: "High risk score"
+      }
+    };
+
+    declineResponse.security = {
+      nonce: msg.security.nonce,
+      signature: signMessage({ ...declineResponse, security: undefined }, terminalSecret),
+      algorithm: "HMAC_SHA256"
+    };
+
+    await TransactionModel.create({
+      ...msg,
+      result: declineResponse.result,
+      flags: { offline_stored: false, reversal_required: false },
+      security: declineResponse.security
+    });
+
+    return res.json(declineResponse);
+  }
+
+  // 5. Multi‑currency conversion (normalize to AED)
+  if (msg.amount.currency !== "AED") {
+    const converted = convert(msg.amount.value, msg.amount.currency, "AED");
+    msg.amount.value = converted || msg.amount.value;
+    msg.amount.currency = "AED";
+  }
+
+  // 5.5. Tokenize PAN for MOTO transactions (PCI compliance)
+  if (msg.card.entry_mode === "MOTO" && msg.card.pan) {
+    const encrypted = encryptPAN(msg.card.pan);
+
+    const token = "TKN-" + crypto.randomBytes(8).toString("hex");
+
+    await VaultModel.create({
+      token,
+      encrypted_pan: encrypted,
+      expiry_month: msg.card.expiry_month,
+      expiry_year: msg.card.expiry_year
+    });
+
+    msg.card.token = token;
+    delete (msg.card as any).pan; // Remove PAN from transaction
+  }
+
+  // 6. BIN Lookup + Card Scheme Detection
+  const binInfo = lookupBin(msg.card.token || msg.card.pan || "");
+  
+  // 7. Acquirer Routing
+  const acquirer = routeToAcquirer(msg);
+
+  // 8. Handle message types: SALE, REFUND, VOID, PREAUTH, CAPTURE
+  let responseStatus: "APPROVED" | "DECLINED" | "ERROR" | "PENDING" = "PENDING";
+  let responseCode = "99";
+  let responseDescription = "Signature OK — ready for processing";
+
+  switch (msg.message_type) {
+    case "REFUND":
+      const original = await TransactionModel.findOne({ transaction_id: msg.transaction_id });
+      if (!original) {
+        responseStatus = "ERROR";
+        responseCode = "404";
+        responseDescription = "Original transaction not found";
+      } else {
+        if (original.result) {
+          original.result.status = "REFUNDED";
+          await original.save();
+        }
+        responseStatus = "APPROVED";
+        responseCode = "00";
+        responseDescription = "Refund approved";
+      }
+      break;
+    
+    case "VOID":
+      const originalVoid = await TransactionModel.findOne({ transaction_id: msg.transaction_id });
+      if (!originalVoid) {
+        responseStatus = "ERROR";
+        responseCode = "404";
+        responseDescription = "Original transaction not found";
+      } else {
+        if (originalVoid.result) {
+          originalVoid.result.status = "VOIDED";
+          await originalVoid.save();
+        }
+        responseStatus = "APPROVED";
+        responseCode = "00";
+        responseDescription = "Void approved";
+      }
+      break;
+
+    case "PREAUTH":
+      responseStatus = "APPROVED";
+      responseCode = "00";
+      responseDescription = "Preauth approved";
+      break;
+
+    case "CAPTURE":
+      responseStatus = "APPROVED";
+      responseCode = "00";
+      responseDescription = "Capture approved";
+      break;
+
+    case "SALE":
+    case "PING":
+    default:
+      responseStatus = "APPROVED";
+      responseCode = "00";
+      responseDescription = "Approved";
+      break;
+  }
+
+  // 9. Build response
+  const response: Protocol1016Response = {
+    protocol: "101.6",
+    message_type: `${msg.message_type}_RESPONSE`,
+    transaction_id: msg.transaction_id,
+    timestamp: new Date().toISOString(),
+    result: {
+      status: responseStatus,
+      code: responseCode,
+      description: responseDescription,
+      auth_code: crypto.randomBytes(6).toString("hex").toUpperCase(),
+      rrn: "RR" + Date.now().toString().substring(2),
+      stan: crypto.randomBytes(3).toString("hex").toUpperCase()
+    },
+    amount: msg.amount,
+    merchant: msg.merchant,
+    card: {
+      scheme: binInfo?.scheme || "UNKNOWN",
+      last4: msg.card.last4,
+      token: msg.card.token
+    },
+    flags: {
+      offline_stored: msg.transaction_flags.offline,
+      reversal_required: false
+    }
+  };
+
+  // 10. Sign response
+  response.security = {
+    nonce: msg.security.nonce,
+    signature: signMessage({ ...response, security: undefined }, terminalSecret),
+    algorithm: "HMAC_SHA256"
+  };
+
+  // 11. Save transaction to DB
+  await TransactionModel.create({
+    ...msg,
+    result: response.result,
+    card: {
+      ...msg.card,
+      scheme: binInfo?.scheme || "UNKNOWN",
+      type: binInfo?.type || "UNKNOWN",
+      country: binInfo?.country || ""
+    },
+    metadata: { ...msg.metadata, acquirer },
+    flags: response.flags,
+    security: response.security
+  });
+
+  // 11.5. Credit merchant wallet on SALE APPROVED
+  if (responseStatus === "APPROVED" && msg.message_type === "SALE") {
+    try {
+      const mName = (await MerchantModel.findOne({
+        merchant_id: msg.merchant.merchant_id
+      }))?.name || msg.merchant.merchant_id;
+
+      await creditWallet(
+        msg.merchant.merchant_id,
+        mName,
+        msg.amount.value,
+        msg.amount.currency,
+        msg.transaction_id,
+        `MOTO sale — ${msg.card.entry_mode} — terminal ${msg.merchant.terminal_id}`
+      );
+    } catch (walletErr: any) {
+      // Wallet credit failed — log it but do not reverse the approved transaction
+      console.error(`[Wallet] Credit failed for ${msg.transaction_id}:`, walletErr.message);
+    }
+  }
+
+  // 11.6. Reverse merchant wallet credit on REFUND APPROVED
+  if (responseStatus === "APPROVED" && msg.message_type === "REFUND") {
+    try {
+      await reverseCredit(
+        msg.merchant.merchant_id,
+        msg.amount.value,
+        msg.amount.currency,
+        msg.transaction_id,
+        `Refund reversal — original tx ${msg.transaction_id}`
+      );
+    } catch (walletErr: any) {
+      console.error(`[Wallet] Refund reversal failed for ${msg.transaction_id}:`, walletErr.message);
+    }
+  }
+
+  // 12. Send webhook to merchant if registered
+  const webhook = await WebhookModel.findOne({ merchant_id: msg.merchant.merchant_id });
+  if (webhook && webhook.url) {
+    sendWebhook(webhook.url, response);
+  }
+
+  res.json(response);
+});
+
+// Settlement endpoints
+app.post('/settlement/daily/:merchant_id', async (req, res) => {
+  try {
+    const { terminal_id } = req.query;
+    const batch = await generateDailySettlement(req.params.merchant_id, terminal_id as string);
+    sendSettlementAlert(batch);
+    res.json(batch);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.post('/settlement/weekly/:merchant_id', async (req, res) => {
+  try {
+    const { terminal_id } = req.query;
+    const batch = await generateWeeklySettlement(req.params.merchant_id, terminal_id as string);
+    sendSettlementAlert(batch);
+    res.json(batch);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.post('/settlement/monthly/:merchant_id', async (req, res) => {
+  try {
+    const { terminal_id } = req.query;
+    const batch = await generateMonthlySettlement(req.params.merchant_id, terminal_id as string);
+    sendSettlementAlert(batch);
+    res.json(batch);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.get('/settlement/:merchant_id', async (req, res) => {
+  try {
+    const settlements = await SettlementModel.find({ merchant_id: req.params.merchant_id }).sort({ created_at: -1 });
+    res.json(settlements);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.get('/settlement/:batch_id/export', async (req, res) => {
+  try {
+    const { format = "json" } = req.query;
+    const batch = await SettlementModel.findById(req.params.batch_id);
+    
+    if (!batch) {
+      return res.status(404).json({ error: "Settlement batch not found" });
+    }
+    
+    const transactions = await TransactionModel.find({ _id: { $in: batch.transactions } });
+    
+    if (format === "csv") {
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename=settlement-${batch.batch_id}.csv`);
+      res.send(exportToCSV(batch, transactions));
+    } else {
+      res.json({ settlement: batch, transactions });
+    }
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Reconciliation endpoints
+app.post('/reconciliation/:merchant_id', async (req, res) => {
+  try {
+    const { acquirer_records, start_date, end_date } = req.body;
+    
+    let startDate: Date | undefined;
+    let endDate: Date | undefined;
+    
+    if (start_date) startDate = new Date(start_date);
+    if (end_date) endDate = new Date(end_date);
+    
+    const batch = await reconcileBatch(req.params.merchant_id, acquirer_records, startDate, endDate);
+    res.json(batch);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.get('/reconciliation/:merchant_id', async (req, res) => {
+  try {
+    const reconciliations = await ReconciliationModel.find({ merchant_id: req.params.merchant_id }).sort({ created_at: -1 });
+    res.json(reconciliations);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// External Issuer Management
+// Register and manage external money servers (customer wallets)
+// ─────────────────────────────────────────────────────────────
+
+// Register an external money server
+app.post('/issuer/register', async (req, res) => {
+  try {
+    const { server_id, name, api_url, api_key, currency } = req.body;
+
+    if (!server_id || !name || !api_url || !api_key) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Missing required fields: server_id, name, api_url, api_key'
+      });
+    }
+
+    const existing = await ExternalIssuerModel.findOne({ server_id });
+    if (existing) {
+      return res.status(409).json({ status: 'ERROR', message: 'External issuer already registered' });
+    }
+
+    const issuer = await ExternalIssuerModel.create({
+      server_id,
+      name,
+      api_url,
+      api_key,
+      currency: currency || 'AED',
+      status: 'ACTIVE'
+    });
+
+    res.json({
+      status: 'SUCCESS',
+      server_id: issuer.server_id,
+      message: 'External issuer registered successfully'
+    });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// List all external issuers (api_key excluded)
+app.get('/issuer', async (req, res) => {
+  try {
+    const issuers = await ExternalIssuerModel.find({}, { api_key: 0 });
+    res.json(issuers);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Get single external issuer by server_id (api_key excluded)
+app.get('/issuer/:server_id', async (req, res) => {
+  try {
+    const issuer = await ExternalIssuerModel.findOne(
+      { server_id: req.params.server_id },
+      { api_key: 0 }
+    );
+    if (!issuer) return res.status(404).json({ error: 'Issuer not found' });
+    res.json(issuer);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Suspend or reactivate an issuer
+app.patch('/issuer/:server_id/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['ACTIVE', 'SUSPENDED'].includes(status)) {
+      return res.status(400).json({ error: 'status must be ACTIVE or SUSPENDED' });
+    }
+    await ExternalIssuerModel.updateOne({ server_id: req.params.server_id }, { status });
+    res.json({ status: 'SUCCESS', server_id: req.params.server_id, new_status: status });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// CASH-OUT endpoint  —  POST /1016/cashout
+// Flow: POS → 101.6 processor → External issuer → POS
+// ─────────────────────────────────────────────────────────────
+app.post('/1016/cashout', async (req, res) => {
+  const msg = req.body as CashOutRequest;
+
+  // 1. Validate protocol + message type
+  if (msg.protocol !== '101.6' || msg.message_type !== 'CASH_OUT') {
+    return res.status(400).json({
+      error: 'Invalid protocol or message_type. Expected 101.6 / CASH_OUT'
+    });
+  }
+
+  if (!msg.external_issuer?.server_id || !msg.external_issuer?.user_id) {
+    return res.status(400).json({
+      error: 'Missing external_issuer.server_id or external_issuer.user_id'
+    });
+  }
+
+  if (!msg.amount?.value || msg.amount.value <= 0) {
+    return res.status(400).json({ error: 'Invalid amount' });
+  }
+
+  // 2. Verify terminal HMAC signature
+  const terminalSecret = await getTerminalSecret(msg.merchant.terminal_id);
+  const valid = verifyMessage(
+    { ...msg, security: undefined },
+    terminalSecret,
+    msg.security.signature
+  );
+
+  if (!valid) {
+    return res.status(401).json({ error: 'Invalid HMAC signature' });
+  }
+
+  // 3. Currency normalisation — always settle in AED
+  let amount = msg.amount.value;
+  let currency = msg.amount.currency;
+  if (currency !== 'AED') {
+    amount = convert(amount, currency, 'AED') || amount;
+    currency = 'AED';
+  }
+
+  // 3.5. Offline CASH_OUT — store wallet record in CREATED state then queue it.
+  //      No debit is attempted now. syncOfflineWalletDebit() handles it on next sync.
+  if ((msg.transaction_flags as any).offline === true) {
+    await createOfflineWalletRecord(
+      msg.transaction_id,
+      msg.external_issuer.server_id,
+      msg.external_issuer.user_id,
+      msg.merchant.terminal_id,
+      amount,
+      currency
+    );
+    await storeOffline(msg);
+    return res.json({
+      protocol:       '101.6',
+      message_type:   'CASH_OUT_RESPONSE',
+      transaction_id: msg.transaction_id,
+      timestamp:      new Date().toISOString(),
+      result: {
+        status:      'PENDING',
+        code:        'OF',
+        description: 'Cash-out stored offline — wallet debit will occur on next sync'
+      }
+    });
+  }
+
+  // 4. Call the external issuer — the core of the CASH_OUT flow
+  const issuerResponse = await callExternalIssuer(
+    msg.external_issuer.server_id,
+    msg.external_issuer.user_id,
+    amount,
+    currency,
+    msg.transaction_id,
+    msg.merchant.terminal_id
+  );
+
+  // 5. Map issuer response → 101.6 CASH_OUT_RESPONSE
+  const responseStatus = issuerResponse.approved ? 'APPROVED' : 'DECLINED';
+  const responseCode   = issuerResponse.approved ? '00' : (issuerResponse.error_code || 'XX');
+
+  const response: CashOutResponse = {
+    protocol: '101.6',
+    message_type: 'CASH_OUT_RESPONSE',
+    transaction_id: msg.transaction_id,
+    timestamp: new Date().toISOString(),
+    result: {
+      status: responseStatus,
+      code: responseCode,
+      description: issuerResponse.approved ? 'CASH-OUT APPROVED' : issuerResponse.message,
+      auth_code: issuerResponse.approved
+        ? crypto.randomBytes(3).toString('hex').toUpperCase()
+        : undefined,
+      rrn: 'RR' + Date.now().toString().substring(2),
+      stan: crypto.randomBytes(3).toString('hex').toUpperCase(),
+      issuer_reference: issuerResponse.issuer_reference,
+      balance_after: issuerResponse.balance_after
+    },
+    amount: { value: amount, currency },
+    external_issuer: {
+      server_id: msg.external_issuer.server_id,
+      user_id: msg.external_issuer.user_id
+    }
+  };
+
+  // 6. Sign response with terminal secret
+  response.security = {
+    nonce: msg.security.nonce,
+    signature: signMessage({ ...response, security: undefined }, terminalSecret),
+    algorithm: 'HMAC_SHA256'
+  };
+
+  // 7. Persist to cashout_transactions collection
+  await CashOutTransactionModel.create({
+    transaction_id: msg.transaction_id,
+    timestamp: msg.timestamp,
+    merchant: msg.merchant,
+    amount: { value: amount, currency },
+    external_issuer: {
+      server_id: msg.external_issuer.server_id,
+      user_id: msg.external_issuer.user_id,
+      issuer_reference: issuerResponse.issuer_reference,
+      balance_after: issuerResponse.balance_after
+    },
+    result: response.result,
+    security: response.security,
+    metadata: msg.metadata
+  });
+
+  // 8. Fire merchant webhook if registered
+  const webhook = await WebhookModel.findOne({ merchant_id: msg.merchant.merchant_id });
+  if (webhook?.url) {
+    sendWebhook(webhook.url, response);
+  }
+
+  res.json(response);
+});
+
+// All cash-outs for a merchant
+// All cash-outs across all merchants (dashboard overview)
+// IMPORTANT: must be registered BEFORE /cashout/:merchant_id
+// otherwise "all" gets matched as a merchant_id
+app.get('/cashout/all', async (req, res) => {
+  try {
+    const cashouts = await CashOutTransactionModel.find({}).sort({ created_at: -1 });
+    res.json(cashouts);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Single cash-out by transaction_id
+// IMPORTANT: must be before /cashout/:merchant_id too
+app.get('/cashout/tx/:transaction_id', async (req, res) => {
+  try {
+    const cashout = await CashOutTransactionModel.findOne({
+      transaction_id: req.params.transaction_id
+    });
+    if (!cashout) return res.status(404).json({ error: 'Cash-out transaction not found' });
+    res.json(cashout);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// All cash-outs for a specific merchant — keep last (wildcard route)
+app.get('/cashout/:merchant_id', async (req, res) => {
+  try {
+    const cashouts = await CashOutTransactionModel.find({
+      'merchant.merchant_id': req.params.merchant_id
+    }).sort({ created_at: -1 });
+    res.json(cashouts);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// Offline Queue — status + sync endpoints
+// Terminals that were offline submit with transaction_flags.offline=true
+// Those records land in OfflineQueueModel (PENDING).
+// POST /offline/sync re-processes them through the full pipeline.
+// ─────────────────────────────────────────────────────────────
+
+// How many PENDING offline records exist?
+app.get('/offline/status', async (req, res) => {
+  try {
+    const count = await getPendingCount();
+    res.json({ pending: count });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// List all offline records (admin view — filter by status)
+app.get('/offline/queue', async (req, res) => {
+  try {
+    const { status } = req.query;
+    const filter: any = {};
+    if (status) filter.status = status;
+    const { OfflineQueueModel } = await import('./models/offlineQueue.js');
+    const records = await OfflineQueueModel.find(filter).sort({ created_at: 1 });
+    res.json(records);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Process all PENDING offline records through the full 101.6 pipeline
+app.post('/offline/sync', async (req, res) => {
+  try {
+    const pending = await getPending();
+
+    if (pending.length === 0) {
+      return res.json({ synced: 0, failed: 0, message: 'No pending records' });
+    }
+
+    let synced = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (const record of pending) {
+      try {
+        const msg = record.payload as any;
+
+        // ── CASH_OUT: go through wallet state machine, never double-debit ──
+        if (record.endpoint === '/1016/cashout') {
+          const walletResult = await syncOfflineWalletDebit(msg.transaction_id);
+
+          if (walletResult.status === 'DEBIT_CONFIRMED') {
+            // Issuer approved — write final CashOut record if not already saved
+            const existingCo = await CashOutTransactionModel.findOne({
+              transaction_id: msg.transaction_id
+            });
+
+            if (!existingCo) {
+              let amount   = msg.amount.value;
+              let currency = msg.amount.currency;
+              if (currency !== 'AED') {
+                amount   = convert(amount, currency, 'AED') || amount;
+                currency = 'AED';
+              }
+
+              await CashOutTransactionModel.create({
+                transaction_id: msg.transaction_id,
+                timestamp:      msg.timestamp,
+                merchant:       msg.merchant,
+                amount:         { value: amount, currency },
+                external_issuer: {
+                  server_id:        msg.external_issuer.server_id,
+                  user_id:          msg.external_issuer.user_id,
+                  issuer_reference: walletResult.issuer_reference,
+                  balance_after:    walletResult.balance_after
+                },
+                result: {
+                  status:      'APPROVED',
+                  code:        '00',
+                  description: 'Offline cash-out synced',
+                  auth_code:   crypto.randomBytes(3).toString('hex').toUpperCase(),
+                  rrn:         'RR' + Date.now().toString().substring(2),
+                  stan:        crypto.randomBytes(3).toString('hex').toUpperCase()
+                }
+              });
+            }
+
+            await markSynced(record.transaction_id);
+            synced++;
+          } else {
+            // Wallet debit failed — still retryable unless FAILED state was set
+            errors.push(`${record.transaction_id}: ${walletResult.error}`);
+            failed++;
+          }
+          continue;
+        }
+
+        // ── Regular SALE: re-process through the full transaction pipeline ──
+        const saleMsg = msg as Protocol1016Request;
+        saleMsg.transaction_flags.offline = false;
+
+        // Re-verify HMAC
+        const terminalSecret = await getTerminalSecret(saleMsg.merchant.terminal_id);
+        const valid = verifyMessage(
+          { ...saleMsg, security: undefined },
+          terminalSecret,
+          saleMsg.security.signature
+        );
+
+        if (!valid) {
+          await markFailed(record.transaction_id, 'HMAC verification failed');
+          failed++;
+          errors.push(`${record.transaction_id}: HMAC failed`);
+          continue;
+        }
+
+        // Check for duplicate
+        const existing = await TransactionModel.findOne({
+          transaction_id: saleMsg.transaction_id
+        });
+        if (existing) {
+          await markSynced(record.transaction_id);
+          synced++;
+          continue;
+        }
+
+        // Currency normalisation
+        if (saleMsg.amount.currency !== 'AED') {
+          const converted = convert(saleMsg.amount.value, saleMsg.amount.currency, 'AED');
+          saleMsg.amount.value    = converted || saleMsg.amount.value;
+          saleMsg.amount.currency = 'AED';
+        }
+
+        // Tokenize PAN for MOTO (PCI compliance)
+        if (saleMsg.card.entry_mode === 'MOTO' && saleMsg.card.pan) {
+          const encrypted = encryptPAN(saleMsg.card.pan);
+          const token = 'TKN-' + crypto.randomBytes(8).toString('hex');
+          await VaultModel.create({
+            token,
+            encrypted_pan: encrypted,
+            expiry_month:  saleMsg.card.expiry_month,
+            expiry_year:   saleMsg.card.expiry_year
+          });
+          saleMsg.card.token = token;
+          delete (saleMsg.card as any).pan;
+        }
+
+        const binInfo  = lookupBin(saleMsg.card.token || saleMsg.card.pan || '');
+        const acquirer = routeToAcquirer(saleMsg);
+
+        await TransactionModel.create({
+          ...saleMsg,
+          result: {
+            status:      'APPROVED',
+            code:        '00',
+            description: 'Offline transaction synced',
+            auth_code:   crypto.randomBytes(6).toString('hex').toUpperCase(),
+            rrn:         'RR' + Date.now().toString().substring(2),
+            stan:        crypto.randomBytes(3).toString('hex').toUpperCase()
+          },
+          card: {
+            ...saleMsg.card,
+            scheme:  binInfo?.scheme  || 'UNKNOWN',
+            type:    binInfo?.type    || 'UNKNOWN',
+            country: binInfo?.country || ''
+          },
+          metadata: { ...saleMsg.metadata, acquirer },
+          flags: { offline_stored: true, reversal_required: false }
+        });
+
+        await markSynced(record.transaction_id);
+        synced++;
+
+      } catch (err: any) {
+        await markFailed(record.transaction_id, err.message || 'Unknown error');
+        failed++;
+        errors.push(`${record.transaction_id}: ${err.message}`);
+      }
+    }
+
+    res.json({
+      total:  pending.length,
+      synced,
+      failed,
+      errors: errors.length > 0 ? errors : undefined
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// Merchant Wallet endpoints
+// ─────────────────────────────────────────────────────────────
+
+// Get wallet balance + info for a merchant
+app.get('/wallet/:merchant_id', async (req, res) => {
+  try {
+    const wallet = await getWallet(req.params.merchant_id);
+    if (!wallet) {
+      // Wallet may not exist if merchant registered before this feature — create it
+      const merchant = await MerchantModel.findOne({
+        merchant_id: req.params.merchant_id
+      });
+      if (!merchant) return res.status(404).json({ error: 'Merchant not found' });
+      await ensureWallet(
+        merchant.merchant_id as string,
+        (merchant.name || merchant.merchant_id) as string,
+        (merchant.currency || 'AED') as string
+      );
+      const created = await getWallet(req.params.merchant_id);
+      return res.json(created);
+    }
+    res.json(wallet);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Get wallet ledger (transaction history)
+app.get('/wallet/:merchant_id/ledger', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 50;
+    const ledger = await getWalletLedger(req.params.merchant_id, limit);
+    res.json(ledger);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Update merchant bank account details (stored on wallet)
+app.put('/wallet/:merchant_id/bank', async (req, res) => {
+  try {
+    const { account_name, account_number, bank_name, iban, swift, country } = req.body;
+    if (!account_name || !account_number || !bank_name) {
+      return res.status(400).json({ error: 'account_name, account_number and bank_name are required' });
+    }
+    await MerchantWalletModel.updateOne(
+      { merchant_id: req.params.merchant_id },
+      {
+        bank_account: { account_name, account_number, bank_name, iban, swift, country },
+        updated_at: new Date()
+      }
+    );
+    res.json({ status: 'SUCCESS', message: 'Bank account updated' });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Admin: freeze or unfreeze a wallet
+app.patch('/wallet/:merchant_id/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['ACTIVE', 'FROZEN', 'SUSPENDED'].includes(status)) {
+      return res.status(400).json({ error: 'status must be ACTIVE, FROZEN, or SUSPENDED' });
+    }
+    await MerchantWalletModel.updateOne(
+      { merchant_id: req.params.merchant_id },
+      { status, updated_at: new Date() }
+    );
+    res.json({ status: 'SUCCESS', new_status: status });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// Payout endpoints
+// ─────────────────────────────────────────────────────────────
+
+// Merchant submits a payout request
+app.post('/wallet/:merchant_id/payout', async (req, res) => {
+  try {
+    const { amount, currency, bank_account, note } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'amount must be a positive number' });
+    }
+    if (!bank_account?.account_name || !bank_account?.account_number || !bank_account?.bank_name) {
+      return res.status(400).json({
+        error: 'bank_account must include account_name, account_number, bank_name'
+      });
+    }
+
+    const result = await requestPayout(
+      req.params.merchant_id,
+      amount,
+      currency || 'AED',
+      bank_account,
+      note
+    );
+    res.json({ status: 'SUCCESS', ...result });
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
+  }
+});
+
+// List payout requests for a merchant
+app.get('/wallet/:merchant_id/payouts', async (req, res) => {
+  try {
+    const payouts = await PayoutRequestModel.find({
+      merchant_id: req.params.merchant_id
+    }).sort({ requested_at: -1 });
+    res.json(payouts);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Admin: list ALL pending payout requests across all merchants
+app.get('/admin/payouts', async (req, res) => {
+  try {
+    const { status } = req.query;
+    const filter: any = {};
+    if (status) filter.status = status;
+    const payouts = await PayoutRequestModel.find(filter).sort({ requested_at: -1 });
+    res.json(payouts);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Admin: approve payout — debits wallet, initiates bank transfer
+app.post('/admin/payouts/:payout_id/approve', async (req, res) => {
+  try {
+    const { admin_note } = req.body;
+    const result = await approvePayout(req.params.payout_id, admin_note);
+    res.json({
+      status: 'SUCCESS',
+      message: 'Payout approved — initiate bank transfer now',
+      balance_after: result.balance_after
+    });
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
+  }
+});
+
+// Admin: mark payout as completed (bank transfer done)
+app.post('/admin/payouts/:payout_id/complete', async (req, res) => {
+  try {
+    await completePayout(req.params.payout_id);
+    res.json({ status: 'SUCCESS', message: 'Payout marked as completed' });
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
+  }
+});
+
+// Admin: reject payout
+app.post('/admin/payouts/:payout_id/reject', async (req, res) => {
+  try {
+    const { admin_note } = req.body;
+    if (!admin_note) {
+      return res.status(400).json({ error: 'admin_note (reason) is required for rejection' });
+    }
+    await rejectPayout(req.params.payout_id, admin_note);
+    res.json({ status: 'SUCCESS', message: 'Payout rejected' });
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// Offline Wallet State endpoints
+// ─────────────────────────────────────────────────────────────
+
+// Get wallet state for a single offline cash-out
+app.get('/offline/wallet/:transaction_id', async (req, res) => {
+  try {
+    const record = await getWalletState(req.params.transaction_id);
+    if (!record) return res.status(404).json({ error: 'Wallet record not found' });
+    res.json(record);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// List all offline wallet records — optionally filter by status
+app.get('/offline/wallet', async (req, res) => {
+  try {
+    const { OfflineWalletModel } = await import('./models/offlineWallet.js');
+    const filter: any = {};
+    if (req.query.status) filter.status = req.query.status;
+    if (req.query.server_id) filter.server_id = req.query.server_id;
+    const records = await OfflineWalletModel.find(filter).sort({ created_at: -1 });
+    res.json(records);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Void (reverse) an offline cash-out that was confirmed but cash not dispensed
+app.post('/offline/wallet/:transaction_id/void', async (req, res) => {
+  try {
+    const result = await voidOfflineWalletDebit(req.params.transaction_id);
+    if (result.voided) {
+      res.json({ status: 'VOID_CONFIRMED', transaction_id: req.params.transaction_id });
+    } else {
+      res.status(400).json({ status: 'VOID_FAILED', error: result.error });
+    }
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`101.6 host running on port ${PORT}`);
+});

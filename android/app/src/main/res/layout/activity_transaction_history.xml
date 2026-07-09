@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/primestack_primary"
+        android:text="Transaction History"
+        android:textColor="@color/white"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:padding="16dp"
+        android:gravity="center" />
+
+    <TextView
+        android:id="@+id/tvDateLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Offline Transactions"
+        android:textColor="@color/primestack_gray"
+        android:textSize="14sp"
+        android:layout_marginTop="16dp" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/primestack_light_gray"
+        android:layout_marginTop="8dp" />
+
+    <ListView
+        android:id="@+id/transactionListView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="16dp" />
+
+    <Button
+        android:id="@+id/btnFilters"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Filters"
+        android:textSize="16sp"
+        android:padding="16dp"
+        android:background="@color/primestack_light_gray"
+        android:textColor="@color/primestack_secondary" />
+
+</LinearLayout>

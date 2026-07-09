@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center">
+
+    <TextView
+        android:id="@+id/tvResultStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="APPROVED ✔"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:textColor="@color/primestack_success" />
+
+    <TextView
+        android:id="@+id/tvAmount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Amount: AED 0.00"
+        android:textSize="18sp"
+        android:textColor="@color/primestack_secondary"
+        android:layout_marginTop="24dp" />
+
+    <TextView
+        android:id="@+id/tvCardInfo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Card: VISA •••• 1111"
+        android:textSize="16sp"
+        android:textColor="@color/primestack_gray"
+        android:layout_marginTop="8dp" />
+
+    <TextView
+        android:id="@+id/tvAuthCode"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Auth Code: 045321"
+        android:textSize="14sp"
+        android:textColor="@color/primestack_gray"
+        android:layout_marginTop="16dp" />
+
+    <TextView
+        android:id="@+id/tvRRN"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="RRN: 123456789012"
+        android:textSize="14sp"
+        android:textColor="@color/primestack_gray"
+        android:layout_marginTop="8dp" />
+
+    <Button
+        android:id="@+id/btnPrintReceipt"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Print / Share Receipt"
+        android:textSize="16sp"
+        android:padding="16dp"
+        android:background="@color/primestack_light_gray"
+        android:textColor="@color/primestack_secondary"
+        android:layout_marginTop="32dp" />
+
+    <Button
+        android:id="@+id/btnNewSale"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="New Sale"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:padding="16dp"
+        android:background="@color/primestack_primary"
+        android:textColor="@color/white"
+        android:layout_marginTop="16dp" />
+
+</LinearLayout>

@@ -1,0 +1,17 @@
+[
+  { "bin": "411111", "scheme": "VISA", "type": "CREDIT", "country": "US" },
+  { "bin": "411112", "scheme": "VISA", "type": "DEBIT", "country": "US" },
+  { "bin": "411113", "scheme": "VISA", "type": "PREPAID", "country": "CA" },
+  { "bin": "510510", "scheme": "MASTERCARD", "type": "DEBIT", "country": "AE" },
+  { "bin": "510511", "scheme": "MASTERCARD", "type": "CREDIT", "country": "SA" },
+  { "bin": "378282", "scheme": "AMEX", "type": "CREDIT", "country": "US" },
+  { "bin": "378283", "scheme": "AMEX", "type": "CORPORATE", "country": "US" },
+  { "bin": "601111", "scheme": "DISCOVER", "type": "CREDIT", "country": "US" },
+  { "bin": "652111", "scheme": "DISCOVER", "type": "DEBIT", "country": "US" },
+  { "bin": "652123", "scheme": "RUPAY", "type": "DEBIT", "country": "IN" },
+  { "bin": "652145", "scheme": "RUPAY", "type": "CREDIT", "country": "IN" },
+  { "bin": "625094", "scheme": "UNIONPAY", "type": "DEBIT", "country": "CN" },
+  { "bin": "625095", "scheme": "UNIONPAY", "type": "CREDIT", "country": "CN" },
+  { "bin": "352800", "scheme": "JCB", "type": "CREDIT", "country": "JP" },
+  { "bin": "352801", "scheme": "JCB", "type": "DEBIT", "country": "JP" }
+]
