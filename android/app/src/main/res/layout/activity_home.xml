@@ -1,172 +1,172 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/primestack_light_gray"
-    android:orientation="vertical"
-    android:padding="24dp">
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/primestack_primary"
-        android:text="PRIMESTACK POS"
-        android:textColor="@color/white"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:padding="16dp"
-        android:gravity="center" />
+    android:background="@color/primestack_light_gray">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="32dp"
-        android:gravity="center">
-
-        <Button
-            android:id="@+id/btnSale"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="NEW SALE"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:padding="16dp"
-            android:background="@color/primestack_primary"
-            android:textColor="@color/white"
-            android:layout_marginEnd="8dp" />
-
-        <Button
-            android:id="@+id/btnMoto"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="MOTO ENTRY"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:padding="16dp"
-            android:background="@color/white"
-            android:textColor="@color/primestack_primary"
-            android:layout_marginStart="8dp" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="16dp"
-        android:gravity="center">
-
-        <Button
-            android:id="@+id/btnTapToPay"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="TAP TO PAY"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:padding="16dp"
-            android:background="@color/white"
-            android:textColor="@color/primestack_primary"
-            android:layout_marginEnd="8dp" />
-
-        <Button
-            android:id="@+id/btnHistory"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="TRANSACTIONS"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:padding="16dp"
-            android:background="@color/white"
-            android:textColor="@color/primestack_primary"
-            android:layout_marginStart="8dp" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="16dp"
-        android:gravity="center">
-
-        <Button
-            android:id="@+id/btnSettings"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="SETTINGS"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:padding="16dp"
-            android:background="@color/white"
-            android:textColor="@color/primestack_primary"
-            android:layout_marginEnd="8dp" />
-
-        <Button
-            android:id="@+id/btnSyncOffline"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="SYNC OFFLINE"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:padding="16dp"
-            android:background="@color/white"
-            android:textColor="@color/primestack_primary"
-            android:layout_marginStart="8dp" />
-    </LinearLayout>
-
-    <Button
-        android:id="@+id/btnCashOut"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="CASH-OUT / WITHDRAW"
-        android:textSize="14sp"
-        android:textStyle="bold"
-        android:padding="16dp"
-        android:background="@color/primestack_accent"
-        android:textColor="@color/white"
-        android:layout_marginTop="16dp" />
-
-    <Button
-        android:id="@+id/btnWallet"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="MY WALLET"
-        android:textSize="14sp"
-        android:textStyle="bold"
-        android:padding="16dp"
-        android:background="@color/primestack_success"
-        android:textColor="@color/white"
-        android:layout_marginTop="10dp" />
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:gravity="bottom|start"
         android:orientation="vertical"
-        android:layout_marginTop="32dp">
+        android:padding="20dp">
 
         <TextView
-            android:id="@+id/tvTerminal"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Terminal: —"
-            android:textColor="@color/primestack_gray"
-            android:textSize="14sp" />
+            android:background="@color/primestack_primary"
+            android:text="PRIMESTACK POS"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:padding="16dp"
+            android:gravity="center" />
 
-        <TextView
-            android:id="@+id/tvMerchant"
-            android:layout_width="wrap_content"
+        <!-- Row 1: Sale + MOTO -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Merchant: —"
-            android:textColor="@color/primestack_gray"
-            android:textSize="14sp"
-            android:layout_marginTop="4dp" />
+            android:orientation="horizontal"
+            android:layout_marginTop="20dp">
+
+            <Button
+                android:id="@+id/btnSale"
+                android:layout_width="0dp"
+                android:layout_height="80dp"
+                android:layout_weight="1"
+                android:text="NEW SALE"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:background="@color/primestack_primary"
+                android:textColor="@color/white"
+                android:layout_marginEnd="6dp" />
+
+            <Button
+                android:id="@+id/btnMoto"
+                android:layout_width="0dp"
+                android:layout_height="80dp"
+                android:layout_weight="1"
+                android:text="MOTO ENTRY"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:background="@color/white"
+                android:textColor="@color/primestack_primary"
+                android:layout_marginStart="6dp" />
+        </LinearLayout>
+
+        <!-- Row 2: Tap to Pay + History -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="10dp">
+
+            <Button
+                android:id="@+id/btnTapToPay"
+                android:layout_width="0dp"
+                android:layout_height="80dp"
+                android:layout_weight="1"
+                android:text="TAP TO PAY"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:background="@color/white"
+                android:textColor="@color/primestack_primary"
+                android:layout_marginEnd="6dp" />
+
+            <Button
+                android:id="@+id/btnHistory"
+                android:layout_width="0dp"
+                android:layout_height="80dp"
+                android:layout_weight="1"
+                android:text="TRANSACTIONS"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:background="@color/white"
+                android:textColor="@color/primestack_primary"
+                android:layout_marginStart="6dp" />
+        </LinearLayout>
+
+        <!-- Row 3: Settings + Sync -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="10dp">
+
+            <Button
+                android:id="@+id/btnSettings"
+                android:layout_width="0dp"
+                android:layout_height="60dp"
+                android:layout_weight="1"
+                android:text="SETTINGS"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:background="@color/white"
+                android:textColor="@color/primestack_primary"
+                android:layout_marginEnd="6dp" />
+
+            <Button
+                android:id="@+id/btnSyncOffline"
+                android:layout_width="0dp"
+                android:layout_height="60dp"
+                android:layout_weight="1"
+                android:text="SYNC OFFLINE"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:background="@color/white"
+                android:textColor="@color/primestack_primary"
+                android:layout_marginStart="6dp" />
+        </LinearLayout>
+
+        <!-- Cash-Out -->
+        <Button
+            android:id="@+id/btnCashOut"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:text="CASH-OUT / WITHDRAW"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:background="@color/primestack_accent"
+            android:textColor="@color/white"
+            android:layout_marginTop="10dp" />
+
+        <!-- Wallet -->
+        <Button
+            android:id="@+id/btnWallet"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:text="MY WALLET"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:background="@color/primestack_success"
+            android:textColor="@color/white"
+            android:layout_marginTop="8dp" />
+
+        <!-- Terminal / Merchant info -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="20dp"
+            android:padding="12dp"
+            android:background="@color/white">
+
+            <TextView
+                android:id="@+id/tvTerminal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Terminal: —"
+                android:textColor="@color/primestack_gray"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/tvMerchant"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Merchant: —"
+                android:textColor="@color/primestack_gray"
+                android:textSize="13sp"
+                android:layout_marginTop="4dp" />
+        </LinearLayout>
+
     </LinearLayout>
-
-</LinearLayout>
+</ScrollView>

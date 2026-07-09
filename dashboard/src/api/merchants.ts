@@ -17,8 +17,9 @@ export async function getTerminals(merchantId: string) {
 
 export async function registerMerchant(merchantData: {
   merchant_id: string;
-  business_name: string;
-  email: string;
+  name: string;
+  country: string;
+  currency: string;
 }) {
   const res = await api.post("/merchant/register", merchantData);
   return res.data;

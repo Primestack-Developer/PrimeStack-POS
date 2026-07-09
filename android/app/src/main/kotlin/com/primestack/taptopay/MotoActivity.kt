@@ -42,30 +42,47 @@ class MotoActivity : AppCompatActivity() {
         val nameInput = findViewById<EditText>(R.id.nameInput)
 
         // Auto-format card number — chunks of 4 digits
+        // Uses a flag to prevent the TextWatcher from triggering itself
+        var isFormatting = false
         panInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                val text = s.toString().filter { it.isDigit() }
-                if (text.length > 16) return
-                val formatted = text.chunked(4).joinToString(" ")
-                if (formatted != s.toString()) s?.replace(0, s.length, formatted)
+                if (isFormatting) return
+                isFormatting = true
+                val digits = s.toString().filter { it.isDigit() }
+                if (digits.length <= 16) {
+                    val formatted = digits.chunked(4).joinToString(" ")
+                    if (formatted != s.toString()) {
+                        s?.replace(0, s.length, formatted)
+                    }
+                } else {
+                    // Remove extra digits
+                    val trimmed = digits.take(16).chunked(4).joinToString(" ")
+                    s?.replace(0, s.length, trimmed)
+                }
+                isFormatting = false
             }
         })
 
         // Auto-format expiry → MM / YY
+        var isFormattingExp = false
         expInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                val text = s.toString().filter { it.isDigit() }
-                if (text.length > 4) return
-                val formatted = when (text.length) {
-                    1    -> text
-                    2    -> "$text / "
-                    else -> "${text.substring(0, 2)} / ${text.substring(2)}"
+                if (isFormattingExp) return
+                isFormattingExp = true
+                val digits = s.toString().filter { it.isDigit() }.take(4)
+                val formatted = when (digits.length) {
+                    0, 1 -> digits
+                    2    -> "$digits / "
+                    else -> "${digits.substring(0, 2)} / ${digits.substring(2)}"
                 }
-                if (formatted != s.toString()) s?.replace(0, s.length, formatted)
+                if (formatted != s.toString()) {
+                    s?.replace(0, s.length, formatted)
+                }
+                isFormattingExp = false
             }
         })
 
