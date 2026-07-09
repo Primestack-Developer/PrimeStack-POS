@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
 import { Protocol1016Request, Protocol1016Response } from './types/1016.js';
@@ -85,6 +86,14 @@ async function getTerminalSecret(terminal_id: string): Promise<string> {
   return process.env.TERMINAL_SECRET_KEY || "default_key";
 }
 
+app.use(cors({
+  origin: [
+    'https://primestack-dashboard.onrender.com',
+    'http://localhost:3001',
+    'http://localhost:3000'
+  ],
+  credentials: true
+}));
 app.use(express.json());
 
 // ─────────────────────────────────────────────────────────────
