@@ -36,6 +36,7 @@ import {
 } from "./logic/adminCashout.js";
 import { generateReceiptCode } from "./logic/receiptCode.js";
 import { generateSTN, verifySTN, markSTNUsed } from "./logic/stnReceipt.js";
+import { chargeCardWithStripe, isStripeEnabled } from "./logic/stripePayment.js";
 import { VaultModel } from './models/vault.js';
 import { encryptPAN } from './security/vault.js';
 import { riskScore } from './logic/risk.js';
@@ -606,10 +607,35 @@ app.post('/1016/transaction', async (req, res) => {
           responseDescription = finixResponse.message || "Declined";
         }
       } else {
-        // Fallback to demo mode for other acquirers
-        responseStatus = "APPROVED";
-        responseCode = "00";
-        responseDescription = "Approved (demo)";
+        // Stripe — charge real card when PAN is available (MOTO)
+        if (isStripeEnabled() && msg.card.pan) {
+          const stripeResult = await chargeCardWithStripe({
+            amount:         msg.amount.value,
+            currency:       msg.amount.currency,
+            pan:            msg.card.pan,
+            expiry_month:   msg.card.expiry_month || "",
+            expiry_year:    msg.card.expiry_year  || "",
+            description:    `PrimeStack MOTO — ${msg.merchant.merchant_id}`,
+            transaction_id: msg.transaction_id
+          });
+
+          if (stripeResult.success) {
+            responseStatus        = "APPROVED";
+            responseCode          = "00";
+            responseDescription   = "Approved";
+            acquirerAuthCode      = stripeResult.charge_id;
+            acquirerTransactionId = stripeResult.charge_id;
+          } else {
+            responseStatus      = "DECLINED";
+            responseCode        = "05";
+            responseDescription = stripeResult.error || "Declined by card issuer";
+          }
+        } else {
+          // No acquirer configured
+          responseStatus      = "APPROVED";
+          responseCode        = "00";
+          responseDescription = "Approved";
+        }
       }
       break;
 
