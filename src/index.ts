@@ -35,6 +35,7 @@ import {
   getAdminSTNCodes
 } from "./logic/adminCashout.js";
 import { generateReceiptCode } from "./logic/receiptCode.js";
+import { generateSTN, verifySTN, markSTNUsed } from "./logic/stnReceipt.js";
 import { VaultModel } from './models/vault.js';
 import { encryptPAN } from './security/vault.js';
 import { riskScore } from './logic/risk.js';
@@ -620,8 +621,9 @@ app.post('/1016/transaction', async (req, res) => {
       break;
   }
 
-  // 9. Generate receipt code for customer
+  // 9. Generate receipt code and STN code for customer
   const receipt_code = generateReceiptCode();
+  const stn_code     = generateSTN(); // 6-digit code printed on receipt
 
   // 10. Build response
   const response: Protocol1016Response = {
@@ -650,7 +652,8 @@ app.post('/1016/transaction', async (req, res) => {
     },
     metadata: {
       ...msg.metadata,
-      receipt_code
+      receipt_code,
+      stn_code   // 6-digit code for merchant receipt — used for payout verification
     }
   };
 
@@ -674,6 +677,7 @@ app.post('/1016/transaction', async (req, res) => {
     metadata: { 
       ...msg.metadata, 
       receipt_code,
+      stn_code,
       acquirer,
       acquirer_transaction_id: acquirerTransactionId
     },
@@ -1274,6 +1278,25 @@ app.post('/offline/sync', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────
+// STN Verification endpoint
+// Admin verifies a merchant's STN code before approving payout
+// ─────────────────────────────────────────────────────────────
+
+// Verify STN code — returns transaction details if valid
+app.post('/stn/verify', async (req, res) => {
+  try {
+    const { stn_code, merchant_id } = req.body;
+    if (!stn_code || !merchant_id) {
+      return res.status(400).json({ error: "stn_code and merchant_id are required" });
+    }
+    const result = await verifySTN(stn_code, merchant_id);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
 // Merchant Wallet endpoints
 // ─────────────────────────────────────────────────────────────
 
@@ -1405,15 +1428,43 @@ app.get('/admin/payouts', async (req, res) => {
   }
 });
 
-// Admin: approve payout — debits wallet, initiates bank transfer
+// Admin: approve payout — verifies STN code, debits wallet, initiates bank transfer
 app.post('/admin/payouts/:payout_id/approve', async (req, res) => {
   try {
-    const { admin_note } = req.body;
+    const { admin_note, stn_code } = req.body;
+
+    // Require STN code for approval
+    if (!stn_code) {
+      return res.status(400).json({
+        error: "STN code is required to approve a payout. Ask the merchant for the STN code from their receipt."
+      });
+    }
+
+    // Get payout to find merchant_id
+    const payout = await PayoutRequestModel.findOne({ payout_id: req.params.payout_id });
+    if (!payout) {
+      return res.status(404).json({ error: "Payout request not found" });
+    }
+
+    // Verify STN code belongs to this merchant
+    const stnResult = await verifySTN(stn_code, payout.merchant_id);
+    if (!stnResult.valid) {
+      return res.status(400).json({
+        error: `STN verification failed: ${stnResult.reason}`
+      });
+    }
+
+    // STN is valid — approve the payout
     const result = await approvePayout(req.params.payout_id, admin_note);
+
+    // Mark STN as used so it can't be reused
+    await markSTNUsed(stn_code);
+
     res.json({
-      status: 'SUCCESS',
-      message: 'Payout approved — initiate bank transfer now',
-      balance_after: result.balance_after
+      status: "SUCCESS",
+      message: "Payout approved — STN verified",
+      balance_after: result.balance_after,
+      stn_transaction_id: stnResult.transaction_id
     });
   } catch (error) {
     res.status(400).json({ error: (error as Error).message });

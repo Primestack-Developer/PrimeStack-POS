@@ -66,7 +66,10 @@ const TransactionSchema = new mongoose.Schema({
     pos_app_version: String,
     os: String,
     note: String,
-    receipt_code: String, // Customer receipt code
+    receipt_code: String,         // Customer receipt reference
+    stn_code: String,             // 6-digit Settlement Transaction Number — printed on receipt
+    stn_used: Boolean,            // true after STN has been used for a payout
+    stn_used_at: String,          // when it was used
     acquirer: String,
     acquirer_transaction_id: String,
     nmi_webhook: { type: mongoose.Schema.Types.Mixed },

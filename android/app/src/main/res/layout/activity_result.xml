@@ -1,78 +1,155 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white"
-    android:orientation="vertical"
-    android:padding="24dp"
-    android:gravity="center">
+    android:background="@color/white">
 
-    <TextView
-        android:id="@+id/tvResultStatus"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="APPROVED ✔"
-        android:textSize="32sp"
-        android:textStyle="bold"
-        android:textColor="@color/primestack_success" />
-
-    <TextView
-        android:id="@+id/tvAmount"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Amount: AED 0.00"
-        android:textSize="18sp"
-        android:textColor="@color/primestack_secondary"
-        android:layout_marginTop="24dp" />
-
-    <TextView
-        android:id="@+id/tvCardInfo"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Card: VISA •••• 1111"
-        android:textSize="16sp"
-        android:textColor="@color/primestack_gray"
-        android:layout_marginTop="8dp" />
-
-    <TextView
-        android:id="@+id/tvAuthCode"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Auth Code: 045321"
-        android:textSize="14sp"
-        android:textColor="@color/primestack_gray"
-        android:layout_marginTop="16dp" />
-
-    <TextView
-        android:id="@+id/tvRRN"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="RRN: 123456789012"
-        android:textSize="14sp"
-        android:textColor="@color/primestack_gray"
-        android:layout_marginTop="8dp" />
-
-    <Button
-        android:id="@+id/btnPrintReceipt"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Print / Share Receipt"
-        android:textSize="16sp"
-        android:padding="16dp"
-        android:background="@color/primestack_light_gray"
-        android:textColor="@color/primestack_secondary"
-        android:layout_marginTop="32dp" />
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:gravity="center_horizontal">
 
-    <Button
-        android:id="@+id/btnNewSale"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="New Sale"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:padding="16dp"
-        android:background="@color/primestack_primary"
-        android:textColor="@color/white"
-        android:layout_marginTop="16dp" />
+        <!-- Status -->
+        <TextView
+            android:id="@+id/tvResultStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="APPROVED ✔"
+            android:textSize="32sp"
+            android:textStyle="bold"
+            android:textColor="@color/primestack_success"
+            android:layout_marginTop="16dp" />
 
-</LinearLayout>
+        <!-- Amount -->
+        <TextView
+            android:id="@+id/tvAmount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Amount: AED 0.00"
+            android:textSize="20sp"
+            android:textColor="@color/primestack_secondary"
+            android:layout_marginTop="16dp" />
+
+        <!-- Card info -->
+        <TextView
+            android:id="@+id/tvCardInfo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="15sp"
+            android:textColor="@color/primestack_gray"
+            android:layout_marginTop="8dp" />
+
+        <!-- Auth Code + RRN -->
+        <TextView
+            android:id="@+id/tvAuthCode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Auth Code: —"
+            android:textSize="13sp"
+            android:textColor="@color/primestack_gray"
+            android:layout_marginTop="8dp" />
+
+        <TextView
+            android:id="@+id/tvRRN"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="RRN: —"
+            android:textSize="13sp"
+            android:textColor="@color/primestack_gray"
+            android:layout_marginTop="4dp" />
+
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/primestack_light_gray"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="24dp" />
+
+        <!-- STN Code Box — the most important part for the merchant -->
+        <LinearLayout
+            android:id="@+id/stnBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/primestack_primary"
+            android:orientation="vertical"
+            android:padding="20dp"
+            android:gravity="center"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="STN CODE"
+                android:textColor="#CCFFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.15" />
+
+            <TextView
+                android:id="@+id/tvSTNCode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="000000"
+                android:textColor="@color/white"
+                android:textSize="40sp"
+                android:textStyle="bold"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.3"
+                android:layout_marginTop="4dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Keep this code — needed for payout withdrawal"
+                android:textColor="#CCFFFFFF"
+                android:textSize="11sp"
+                android:gravity="center"
+                android:layout_marginTop="8dp" />
+
+        </LinearLayout>
+
+        <!-- PENDING / OFFLINE notice -->
+        <TextView
+            android:id="@+id/tvOfflineNotice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Stored offline — will sync when connected"
+            android:textColor="@color/primestack_danger"
+            android:textSize="13sp"
+            android:gravity="center"
+            android:padding="12dp"
+            android:background="@color/primestack_light_gray"
+            android:visibility="gone"
+            android:layout_marginTop="12dp" />
+
+        <!-- Buttons -->
+        <Button
+            android:id="@+id/btnPrintReceipt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Share Receipt"
+            android:textSize="15sp"
+            android:padding="14dp"
+            android:background="@color/primestack_light_gray"
+            android:textColor="@color/primestack_secondary"
+            android:layout_marginTop="28dp" />
+
+        <Button
+            android:id="@+id/btnNewSale"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="New Sale"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:padding="16dp"
+            android:background="@color/primestack_primary"
+            android:textColor="@color/white"
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="16dp" />
+
+    </LinearLayout>
+</ScrollView>

@@ -40,6 +40,9 @@ export interface MetadataInfo {
   os?: string;
   note?: string;
   receipt_code?: string;
+  stn_code?: string;
+  acquirer?: string;
+  acquirer_transaction_id?: string;
 }
 
 export interface Protocol1016Request {
