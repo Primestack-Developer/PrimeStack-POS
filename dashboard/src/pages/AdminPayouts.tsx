@@ -55,7 +55,7 @@ export const AdminPayouts: React.FC = () => {
     setActionId(po.payout_id);
     setMsg(null);
     try {
-      const res = await approvePayout(po.payout_id, adminNote[po.payout_id]);
+      const res = await approvePayout(po.payout_id, adminNote[po.payout_id], undefined);
       setMsg({
         text: `Approved — balance after: ${fmt(res.balance_after, po.currency)}. Now initiate the bank transfer manually.`,
         ok: true
@@ -226,24 +226,29 @@ export const AdminPayouts: React.FC = () => {
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     <input
                       type="text"
-                      placeholder="Admin note (optional)"
+                      placeholder="STN Code from merchant receipt *"
                       value={adminNote[po.payout_id] || ""}
                       onChange={e => setAdminNote(n => ({ ...n, [po.payout_id]: e.target.value }))}
                       style={{
-                        padding: "8px 10px", border: "1px solid #ddd",
-                        borderRadius: 6, fontSize: 13
+                        padding: "8px 10px", border: "2px solid #0052FF",
+                        borderRadius: 6, fontSize: 16, fontWeight: 700,
+                        textAlign: "center", letterSpacing: 8, fontFamily: "monospace"
                       }}
+                      maxLength={6}
                     />
+                    <div style={{ fontSize: 11, color: "#888", textAlign: "center" }}>
+                      Ask merchant for the 6-digit STN code from their receipt
+                    </div>
                     <button
                       onClick={() => handleApprove(po)}
-                      disabled={actionId === po.payout_id}
+                      disabled={actionId === po.payout_id || !adminNote[po.payout_id]?.trim()}
                       style={{
                         background: S, color: "#fff", border: "none",
                         padding: "10px 0", borderRadius: 6,
                         fontWeight: 700, fontSize: 13, cursor: "pointer"
                       }}
                     >
-                      ✓ Approve & Debit Wallet
+                      ✓ Verify STN & Approve
                     </button>
                     <textarea
                       placeholder="Rejection reason (required to reject)"

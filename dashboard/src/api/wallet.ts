@@ -61,8 +61,8 @@ export async function getAllPayouts(status?: string) {
   return res.data;
 }
 
-export async function approvePayout(payoutId: string, admin_note?: string) {
-  const res = await api.post(`/admin/payouts/${payoutId}/approve`, { admin_note });
+export async function approvePayout(payoutId: string, stn_code?: string, admin_note?: string) {
+  const res = await api.post(`/admin/payouts/${payoutId}/approve`, { stn_code, admin_note });
   return res.data;
 }
 
