@@ -7,10 +7,11 @@
     android:padding="24dp">
 
     <TextView
+        android:id="@+id/tvPaymentMethodHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/primestack_primary"
-        android:text="Select Payment Method"
+        android:text="SALE — AED 0.00"
         android:textColor="@color/white"
         android:textSize="18sp"
         android:textStyle="bold"

@@ -52,15 +52,26 @@ class AmountActivity : AppCompatActivity() {
 
         btnProceed.setOnClickListener {
             val amount = if (amountString.isNotEmpty()) amountString.toDouble() else 0.0
+            if (amount <= 0) return@setOnClickListener
             val mode = intent.getStringExtra("MODE") ?: "SALE"
-            if (mode == "CASH_OUT") {
-                val i = Intent(this, CashOutActivity::class.java)
-                i.putExtra("AMOUNT", amount)
-                startActivity(i)
-            } else {
-                val i = Intent(this, PaymentMethodActivity::class.java)
-                i.putExtra("AMOUNT", amount)
-                startActivity(i)
+            when (mode) {
+                "CASH_OUT" -> {
+                    val i = Intent(this, CashOutActivity::class.java)
+                    i.putExtra("AMOUNT", amount)
+                    startActivity(i)
+                }
+                "MOTO" -> {
+                    // MOTO goes directly to TransactionType → PaymentMethod
+                    val i = Intent(this, TransactionTypeActivity::class.java)
+                    i.putExtra("AMOUNT", amount)
+                    startActivity(i)
+                }
+                else -> {
+                    // SALE / TAP → show transaction type selector first
+                    val i = Intent(this, TransactionTypeActivity::class.java)
+                    i.putExtra("AMOUNT", amount)
+                    startActivity(i)
+                }
             }
         }
     }

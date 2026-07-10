@@ -69,6 +69,10 @@
             android:exported="false"
             android:theme="@style/Theme.PrimeStackTapToPay" />
         <activity
+            android:name=".TransactionTypeActivity"
+            android:exported="false"
+            android:theme="@style/Theme.PrimeStackTapToPay" />
+        <activity
             android:name=".WalletActivity"
             android:exported="false"
             android:theme="@style/Theme.PrimeStackTapToPay" />

@@ -31,10 +31,11 @@ class MotoActivity : AppCompatActivity() {
 
         prefs  = PrefsManager(this)
         amount = intent.getDoubleExtra("AMOUNT", 0.0)
+        val txType = intent.getStringExtra("TX_TYPE") ?: "SALE"
 
         val df         = DecimalFormat("0.00")
         val btnMotoPay = findViewById<Button>(R.id.btnMotoPay)
-        btnMotoPay.text = "Pay AED ${df.format(amount)}"
+        btnMotoPay.text = "${txType} AED ${df.format(amount)}"
 
         val panInput  = findViewById<EditText>(R.id.panInput)
         val expInput  = findViewById<EditText>(R.id.expInput)
@@ -105,7 +106,7 @@ class MotoActivity : AppCompatActivity() {
 
             btnMotoPay.isEnabled = false
             btnMotoPay.text = "Processing..."
-            sendMotoTransaction(pan, expMonth, expYear, cvv.isNotEmpty())
+            sendMotoTransaction(pan, expMonth, expYear, cvv.isNotEmpty(), txType)
         }
     }
 
@@ -114,13 +115,14 @@ class MotoActivity : AppCompatActivity() {
         pan: String,
         expMonth: String,
         expYear: String,
-        cvvPresent: Boolean
+        cvvPresent: Boolean,
+        txType: String = "SALE"
     ): String {
         val secret = prefs.getTerminalSecret() ?: ""
 
         val sale = mutableMapOf<String, Any>(
             "protocol"       to "101.6",
-            "message_type"   to "SALE",
+            "message_type"   to txType,
             "transaction_id" to "TXN-${System.currentTimeMillis()}",
             "timestamp"      to Instant.now().toString(),
             "merchant" to mapOf(
@@ -164,9 +166,10 @@ class MotoActivity : AppCompatActivity() {
         pan: String,
         expMonth: String,
         expYear: String,
-        cvvPresent: Boolean
+        cvvPresent: Boolean,
+        txType: String = "SALE"
     ) {
-        val json    = buildMotoPayload(pan, expMonth, expYear, cvvPresent)
+        val json    = buildMotoPayload(pan, expMonth, expYear, cvvPresent, txType)
         val body    = json.toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
         val url     = "${prefs.getServerUrl()}/1016/transaction"
         val request = Request.Builder().url(url).post(body).build()

@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/primestack_primary"
+        android:text="Select Transaction Type"
+        android:textColor="@color/white"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:padding="16dp"
+        android:gravity="center" />
+
+    <!-- Amount display -->
+    <TextView
+        android:id="@+id/tvTxAmount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="AED 0.00"
+        android:textColor="@color/primestack_primary"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:padding="20dp"
+        android:layout_marginTop="8dp"
+        android:background="@color/primestack_light_gray" />
+
+    <!-- SALE -->
+    <Button
+        android:id="@+id/btnTxSale"
+        android:layout_width="match_parent"
+        android:layout_height="70dp"
+        android:text="SALE"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:background="@color/primestack_primary"
+        android:textColor="@color/white"
+        android:layout_marginTop="28dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Charge the full amount immediately"
+        android:textColor="@color/primestack_gray"
+        android:textSize="12sp"
+        android:gravity="center"
+        android:layout_marginTop="4dp" />
+
+    <!-- PRE-AUTH -->
+    <Button
+        android:id="@+id/btnTxPreAuth"
+        android:layout_width="match_parent"
+        android:layout_height="70dp"
+        android:text="PRE-AUTHORISATION"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:background="@color/white"
+        android:textColor="@color/primestack_primary"
+        android:layout_marginTop="14dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Hold the amount — capture later"
+        android:textColor="@color/primestack_gray"
+        android:textSize="12sp"
+        android:gravity="center"
+        android:layout_marginTop="4dp" />
+
+    <!-- VOID -->
+    <Button
+        android:id="@+id/btnTxVoid"
+        android:layout_width="match_parent"
+        android:layout_height="70dp"
+        android:text="VOID"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:background="@color/white"
+        android:textColor="@color/primestack_danger"
+        android:layout_marginTop="14dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Cancel an unsettled transaction"
+        android:textColor="@color/primestack_gray"
+        android:textSize="12sp"
+        android:gravity="center"
+        android:layout_marginTop="4dp" />
+
+    <!-- REFUND -->
+    <Button
+        android:id="@+id/btnTxRefund"
+        android:layout_width="match_parent"
+        android:layout_height="70dp"
+        android:text="REFUND"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:background="@color/white"
+        android:textColor="@color/primestack_danger"
+        android:layout_marginTop="14dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Return money to a previously charged card"
+        android:textColor="@color/primestack_gray"
+        android:textSize="12sp"
+        android:gravity="center"
+        android:layout_marginTop="4dp" />
+
+</LinearLayout>
