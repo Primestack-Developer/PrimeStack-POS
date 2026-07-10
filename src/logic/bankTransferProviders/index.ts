@@ -29,6 +29,8 @@ export interface IBankTransferProvider {
   checkTransferStatus(transfer_id: string): Promise<BankTransferResponse>;
 }
 
+import { WiseBankTransferProvider } from "./wise.js";
+
 // Demo provider - just simulates the transfer
 export class DemoBankTransferProvider implements IBankTransferProvider {
   name = "DemoBankTransferProvider";
@@ -74,6 +76,10 @@ export const bankTransferProviders = {
 };
 
 export const getDefaultBankTransferProvider = (): IBankTransferProvider => {
-  // You can make this configurable via environment variable later
+  // Use Wise if API key is configured
+  if (process.env.WISE_API_KEY) {
+    return new WiseBankTransferProvider(process.env.WISE_API_KEY);
+  }
+  // Fall back to demo provider
   return bankTransferProviders.demo;
 };
