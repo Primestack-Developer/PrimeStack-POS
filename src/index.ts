@@ -25,7 +25,16 @@ import { sendFraudAlert, sendSettlementAlert } from './utils/alerts.js';
 import { lookupBin } from './logic/binLookup.js';
 import { ChargebackModel } from './models/chargeback.js';
 import { convert } from './logic/currency.js';
-import { routeToAcquirer } from './logic/router.js';
+import { routeToAcquirer } from "./logic/router.js";
+import { processNMIPayment, refundNMIPayment, voidNMIPayment, NMIResponse } from "./logic/acquirers/nmi.js";
+import { processFinixPayment, refundFinixPayment, voidFinixPayment, FinixPaymentResponse } from "./logic/acquirers/finix.js";
+import { 
+  initiateAdminCashout,
+  verifyAndProcessAdminCashout,
+  getSTNDetails,
+  getAdminSTNCodes
+} from "./logic/adminCashout.js";
+import { generateReceiptCode } from "./logic/receiptCode.js";
 import { VaultModel } from './models/vault.js';
 import { encryptPAN } from './security/vault.js';
 import { riskScore } from './logic/risk.js';
@@ -500,6 +509,9 @@ app.post('/1016/transaction', async (req, res) => {
   let responseStatus: "APPROVED" | "DECLINED" | "ERROR" | "PENDING" = "PENDING";
   let responseCode = "99";
   let responseDescription = "Signature OK — ready for processing";
+  let acquirerAuthCode: string | undefined;
+  let acquirerTransactionId: string | undefined;
+  let acquirerResponse: NMIResponse | null = null;
 
   switch (msg.message_type) {
     case "REFUND":
@@ -549,6 +561,57 @@ app.post('/1016/transaction', async (req, res) => {
       break;
 
     case "SALE":
+      // Call real acquirer based on routing
+      if (acquirer === "NMI" && process.env.NMI_SECURITY_KEY) {
+        acquirerResponse = await processNMIPayment({
+          amount: msg.amount.value,
+          currency: msg.amount.currency,
+          token: msg.card.token,
+          transaction_id: msg.transaction_id,
+          merchant_id: msg.merchant.merchant_id,
+          terminal_id: msg.merchant.terminal_id
+        });
+        
+        if (acquirerResponse.response === "1") {
+          responseStatus = "APPROVED";
+          responseCode = "00";
+          responseDescription = acquirerResponse.responsetext || "Approved";
+          acquirerAuthCode = acquirerResponse.authcode;
+          acquirerTransactionId = acquirerResponse.transactionid;
+        } else {
+          responseStatus = "DECLINED";
+          responseCode = acquirerResponse.response_code || "05";
+          responseDescription = acquirerResponse.responsetext || "Declined";
+        }
+      } else if (acquirer === "FINIX") {
+        const finixResponse = await processFinixPayment({
+          amount: msg.amount.value,
+          currency: msg.amount.currency,
+          merchantId: msg.merchant.merchant_id,
+          terminalId: msg.merchant.terminal_id,
+          transactionId: msg.transaction_id,
+          paymentInstrumentId: msg.card.token // Use token if available
+        });
+        
+        if (finixResponse.success) {
+          responseStatus = "APPROVED";
+          responseCode = "00";
+          responseDescription = finixResponse.message || "Approved";
+          acquirerAuthCode = finixResponse.authCode;
+          acquirerTransactionId = finixResponse.id;
+        } else {
+          responseStatus = "DECLINED";
+          responseCode = "05";
+          responseDescription = finixResponse.message || "Declined";
+        }
+      } else {
+        // Fallback to demo mode for other acquirers
+        responseStatus = "APPROVED";
+        responseCode = "00";
+        responseDescription = "Approved (demo)";
+      }
+      break;
+
     case "PING":
     default:
       responseStatus = "APPROVED";
@@ -557,7 +620,10 @@ app.post('/1016/transaction', async (req, res) => {
       break;
   }
 
-  // 9. Build response
+  // 9. Generate receipt code for customer
+  const receipt_code = generateReceiptCode();
+
+  // 10. Build response
   const response: Protocol1016Response = {
     protocol: "101.6",
     message_type: `${msg.message_type}_RESPONSE`,
@@ -567,7 +633,7 @@ app.post('/1016/transaction', async (req, res) => {
       status: responseStatus,
       code: responseCode,
       description: responseDescription,
-      auth_code: crypto.randomBytes(6).toString("hex").toUpperCase(),
+      auth_code: acquirerAuthCode || crypto.randomBytes(6).toString("hex").toUpperCase(),
       rrn: "RR" + Date.now().toString().substring(2),
       stan: crypto.randomBytes(3).toString("hex").toUpperCase()
     },
@@ -581,17 +647,21 @@ app.post('/1016/transaction', async (req, res) => {
     flags: {
       offline_stored: msg.transaction_flags.offline,
       reversal_required: false
+    },
+    metadata: {
+      ...msg.metadata,
+      receipt_code
     }
   };
 
-  // 10. Sign response
+  // 11. Sign response
   response.security = {
     nonce: msg.security.nonce,
     signature: signMessage({ ...response, security: undefined }, terminalSecret),
     algorithm: "HMAC_SHA256"
   };
 
-  // 11. Save transaction to DB
+  // 12. Save transaction to DB
   await TransactionModel.create({
     ...msg,
     result: response.result,
@@ -601,25 +671,33 @@ app.post('/1016/transaction', async (req, res) => {
       type: binInfo?.type || "UNKNOWN",
       country: binInfo?.country || ""
     },
-    metadata: { ...msg.metadata, acquirer },
+    metadata: { 
+      ...msg.metadata, 
+      receipt_code,
+      acquirer,
+      acquirer_transaction_id: acquirerTransactionId
+    },
     flags: response.flags,
     security: response.security
   });
 
-  // 11.5. Credit merchant wallet on SALE APPROVED
+  // 12.5. Credit merchant wallet on SALE APPROVED
   if (responseStatus === "APPROVED" && msg.message_type === "SALE") {
     try {
       const mName = (await MerchantModel.findOne({
         merchant_id: msg.merchant.merchant_id
       }))?.name || msg.merchant.merchant_id;
 
+      // If it's the admin wallet, credit admin, else credit merchant
+      const walletMerchantId = msg.merchant.merchant_id === "admin" ? "admin" : msg.merchant.merchant_id;
+      
       await creditWallet(
-        msg.merchant.merchant_id,
+        walletMerchantId,
         mName,
         msg.amount.value,
         msg.amount.currency,
         msg.transaction_id,
-        `MOTO sale — ${msg.card.entry_mode} — terminal ${msg.merchant.terminal_id}`
+        `Sale — ${msg.card.entry_mode} — terminal ${msg.merchant.terminal_id}`
       );
     } catch (walletErr: any) {
       // Wallet credit failed — log it but do not reverse the approved transaction
@@ -627,7 +705,7 @@ app.post('/1016/transaction', async (req, res) => {
     }
   }
 
-  // 11.6. Reverse merchant wallet credit on REFUND APPROVED
+  // 12.6. Reverse merchant wallet credit on REFUND APPROVED
   if (responseStatus === "APPROVED" && msg.message_type === "REFUND") {
     try {
       await reverseCredit(
@@ -1404,6 +1482,105 @@ app.post('/offline/wallet/:transaction_id/void', async (req, res) => {
     } else {
       res.status(400).json({ status: 'VOID_FAILED', error: result.error });
     }
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// NMI Webhook Endpoint
+// ─────────────────────────────────────────────────────────────
+app.post('/webhook/nmi', async (req, res) => {
+  try {
+    const webhookData = req.body;
+    
+    console.log("[NMI Webhook] Received:", webhookData);
+    
+    // Find the transaction by orderid (which is our transaction_id)
+    const transactionId = webhookData.orderid;
+    if (transactionId) {
+      const transaction = await TransactionModel.findOne({ transaction_id: transactionId });
+      
+      if (transaction) {
+        // Update transaction with webhook data
+        transaction.metadata = {
+          ...transaction.metadata,
+          nmi_webhook: webhookData,
+          nmi_transaction_id: webhookData.transactionid
+        };
+        
+        await transaction.save();
+        
+        console.log(`[NMI Webhook] Updated transaction ${transactionId}`);
+      }
+    }
+    
+    // NMI expects a 200 response
+    res.status(200).send("OK");
+  } catch (error) {
+    console.error("[NMI Webhook] Error:", error);
+    // Still send 200 to prevent NMI from retrying
+    res.status(200).send("OK");
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// Admin Cashout Endpoints
+// ─────────────────────────────────────────────────────────────
+
+// 1. Initiate Admin Cashout - generates STN code
+app.post('/admin/cashout/initiate', requireAuth, async (req, res) => {
+  try {
+    const { amount, currency, bank_account } = req.body;
+    const admin_id = (req as any).admin.email; // Using email as admin_id
+    
+    const response = await initiateAdminCashout({
+      admin_id,
+      amount,
+      currency: currency || "AED",
+      bank_account
+    });
+    
+    res.json(response);
+  } catch (error) {
+    res.status(400).json({ success: false, message: (error as Error).message });
+  }
+});
+
+// 2. Verify STN Code and Process Cashout
+app.post('/admin/cashout/verify', requireAuth, async (req, res) => {
+  try {
+    const { stn_code } = req.body;
+    
+    const response = await verifyAndProcessAdminCashout({
+      stn_code
+    });
+    
+    res.json(response);
+  } catch (error) {
+    res.status(400).json({ success: false, message: (error as Error).message });
+  }
+});
+
+// 3. Get STN Code Details
+app.get('/admin/cashout/stn/:stn_id', requireAuth, async (req, res) => {
+  try {
+    const stn = await getSTNDetails(req.params.stn_id);
+    if (!stn) {
+      return res.status(404).json({ error: "STN code not found" });
+    }
+    res.json(stn);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// 4. Get All Admin STN Codes
+app.get('/admin/cashout/stns', requireAuth, async (req, res) => {
+  try {
+    const admin_id = (req as any).admin.email;
+    const stns = await getAdminSTNCodes(admin_id);
+    res.json(stns);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }

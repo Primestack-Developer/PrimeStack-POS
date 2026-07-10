@@ -65,7 +65,12 @@ const TransactionSchema = new mongoose.Schema({
   metadata: {
     pos_app_version: String,
     os: String,
-    note: String
+    note: String,
+    receipt_code: String, // Customer receipt code
+    acquirer: String,
+    acquirer_transaction_id: String,
+    nmi_webhook: { type: mongoose.Schema.Types.Mixed },
+    nmi_transaction_id: String
   },
 
   created_at: {

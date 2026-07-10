@@ -156,6 +156,20 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           >
             💸 Payouts
           </Link>
+          <Link 
+            to="/admin/cashout" 
+            style={{ 
+              color: "#fff", 
+              textDecoration: "none", 
+              padding: "12px 15px", 
+              borderRadius: "8px",
+              transition: "background 0.2s"
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "#1a1a1a"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+          >
+            🏦 Admin Cashout
+          </Link>
 
           {/* ── Divider ── */}
           <div style={{ borderTop: "1px solid #2a2a2a", margin: "8px 0" }} />

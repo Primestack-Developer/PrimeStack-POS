@@ -9,6 +9,7 @@ import { MerchantProfile } from "./pages/MerchantProfile";
 import { CashOutTransactions } from "./pages/CashOutTransactions";
 import { MerchantWallet } from "./pages/MerchantWallet";
 import { AdminPayouts } from "./pages/AdminPayouts";
+import { AdminCashout } from "./pages/AdminCashout";
 import { isLoggedIn } from "./api/auth";
 
 // Protects all dashboard routes — redirects to /login if not authenticated
@@ -38,6 +39,7 @@ function App() {
                   <Route path="/cashout"           element={<CashOutTransactions />} />
                   <Route path="/wallet"            element={<MerchantWallet />} />
                   <Route path="/admin/payouts"     element={<AdminPayouts />} />
+                  <Route path="/admin/cashout"     element={<AdminCashout />} />
                 </Routes>
               </Layout>
             </PrivateRoute>

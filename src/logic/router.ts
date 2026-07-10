@@ -1,4 +1,13 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 export function routeToAcquirer(msg: any): string {
+  // First, check if we have a default acquirer configured in environment
+  const defaultAcquirer = process.env.DEFAULT_ACQUIRER;
+  if (defaultAcquirer) {
+    return defaultAcquirer;
+  }
+
   const bin = (msg.card.token || msg.card.pan || "").substring(0, 6);
 
   if (bin.startsWith("4")) return "NMI";          // Visa → NMI
@@ -10,5 +19,5 @@ export function routeToAcquirer(msg: any): string {
   if (bin.startsWith("35")) return "JCB_ACQUIRER";
   if (bin.startsWith("6521")) return "RUPAY_NPCI";
 
-  return "DEFAULT_ACQUIRER";
+  return "FINIX"; // Default to Finix if no BIN match
 }

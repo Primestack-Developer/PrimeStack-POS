@@ -39,6 +39,7 @@ export interface MetadataInfo {
   pos_app_version?: string;
   os?: string;
   note?: string;
+  receipt_code?: string;
 }
 
 export interface Protocol1016Request {
@@ -92,4 +93,7 @@ export interface Protocol1016Response {
   };
 
   security?: SecurityInfo;
+  
+  // Additional fields for receipt
+  metadata?: MetadataInfo;
 }

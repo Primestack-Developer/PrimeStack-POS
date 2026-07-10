@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { ensureWallet } from "../logic/wallet.js";
 
 // ─────────────────────────────────────────────────────────────
 // AdminUser
@@ -50,5 +51,9 @@ export async function seedAdminUser(): Promise<void> {
     private_key_hash: pkHash
   });
 
+  // Create admin wallet
+  await ensureWallet("admin", "PrimeStack Admin", "AED");
+
   console.log(`✅  Admin user created: ${email}`);
+  console.log(`✅  Admin wallet created`);
 }
