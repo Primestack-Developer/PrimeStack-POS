@@ -551,9 +551,33 @@ app.post('/1016/transaction', async (req, res) => {
       break;
 
     case "PREAUTH":
-      responseStatus = "APPROVED";
-      responseCode = "00";
-      responseDescription = "Preauth approved";
+      // PREAUTH also charges via Stripe — holds the amount on the card
+      if (isStripeEnabled() && msg.card.pan) {
+        const stripeResult = await chargeCardWithStripe({
+          amount:         msg.amount.value,
+          currency:       msg.amount.currency,
+          pan:            msg.card.pan,
+          expiry_month:   msg.card.expiry_month || "",
+          expiry_year:    msg.card.expiry_year  || "",
+          description:    `PrimeStack PREAUTH — ${msg.merchant.merchant_id}`,
+          transaction_id: msg.transaction_id
+        });
+        if (stripeResult.success) {
+          responseStatus        = "APPROVED";
+          responseCode          = "00";
+          responseDescription   = "Preauth approved";
+          acquirerAuthCode      = stripeResult.charge_id;
+          acquirerTransactionId = stripeResult.charge_id;
+        } else {
+          responseStatus      = "DECLINED";
+          responseCode        = "05";
+          responseDescription = stripeResult.error || "Declined";
+        }
+      } else {
+        responseStatus      = "APPROVED";
+        responseCode        = "00";
+        responseDescription = "Preauth approved";
+      }
       break;
 
     case "CAPTURE":
