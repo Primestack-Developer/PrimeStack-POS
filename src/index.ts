@@ -522,6 +522,9 @@ app.post('/1016/transaction', async (req, res) => {
   }
 
   // 5.5. Tokenize PAN for MOTO transactions (PCI compliance)
+  // Save raw PAN before tokenization — needed for Stripe charge
+  const rawPanForCharge = msg.card.pan || null;
+
   if (msg.card.entry_mode === "MOTO" && msg.card.pan) {
     const encrypted = encryptPAN(msg.card.pan);
 
@@ -535,7 +538,7 @@ app.post('/1016/transaction', async (req, res) => {
     });
 
     msg.card.token = token;
-    delete (msg.card as any).pan; // Remove PAN from transaction
+    delete (msg.card as any).pan; // Remove PAN from transaction record
   }
 
   // 6. BIN Lookup + Card Scheme Detection
@@ -589,11 +592,11 @@ app.post('/1016/transaction', async (req, res) => {
 
     case "PREAUTH":
       // PREAUTH also charges via Stripe — holds the amount on the card
-      if (isStripeEnabled() && msg.card.pan) {
+      if (isStripeEnabled() && rawPanForCharge) {
         const stripeResult = await chargeCardWithStripe({
           amount:         msg.amount.value,
           currency:       msg.amount.currency,
-          pan:            msg.card.pan,
+          pan:            rawPanForCharge,
           expiry_month:   msg.card.expiry_month || "",
           expiry_year:    msg.card.expiry_year  || "",
           description:    `PrimeStack PREAUTH — ${msg.merchant.merchant_id}`,
@@ -669,11 +672,11 @@ app.post('/1016/transaction', async (req, res) => {
         }
       } else {
         // Stripe — charge real card when PAN is available (MOTO)
-        if (isStripeEnabled() && msg.card.pan) {
+        if (isStripeEnabled() && rawPanForCharge) {
           const stripeResult = await chargeCardWithStripe({
             amount:         msg.amount.value,
             currency:       msg.amount.currency,
-            pan:            msg.card.pan,
+            pan:            rawPanForCharge,
             expiry_month:   msg.card.expiry_month || "",
             expiry_year:    msg.card.expiry_year  || "",
             description:    `PrimeStack MOTO — ${msg.merchant.merchant_id}`,
@@ -692,7 +695,7 @@ app.post('/1016/transaction', async (req, res) => {
             responseDescription = stripeResult.error || "Declined by card issuer";
           }
         } else {
-          // No acquirer configured
+          // No acquirer configured — or no PAN (NFC/token-based)
           responseStatus      = "APPROVED";
           responseCode        = "00";
           responseDescription = "Approved";

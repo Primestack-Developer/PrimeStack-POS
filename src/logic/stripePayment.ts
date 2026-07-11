@@ -65,7 +65,7 @@ export async function chargeCardWithStripe(
             ? `20${req.expiry_year}`
             : req.expiry_year
         ),
-        cvc: req.cvv || undefined
+        cvc: (req.cvv && req.cvv.trim().length > 0) ? req.cvv : undefined
       },
       billing_details: {
         name: req.cardholder_name || undefined
