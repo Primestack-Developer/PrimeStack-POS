@@ -131,10 +131,14 @@ class TapToPayActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
                 "currency" to "AED"
             ),
             "card" to mapOf(
-                "entry_mode" to "CONTACTLESS",
-                "token"      to cardData["token"],
-                "emv_data"   to cardData["cryptogram"],
-                "last4"      to cardData["last4"]
+                "entry_mode"    to "CONTACTLESS",
+                "pan"           to (cardData["pan"] ?: ""),           // real PAN for Stripe
+                "expiry_month"  to (cardData["expiry_month"] ?: ""),
+                "expiry_year"   to (cardData["expiry_year"]  ?: ""),
+                "token"         to (cardData["token"]        ?: ""),
+                "emv_data"      to (cardData["cryptogram"]   ?: ""),
+                "last4"         to (cardData["last4"]        ?: ""),
+                "scheme"        to (cardData["scheme"]       ?: "UNKNOWN")
             ),
             "transaction_flags" to mapOf(
                 "offline"   to false,
