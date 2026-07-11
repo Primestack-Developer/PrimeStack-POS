@@ -253,7 +253,13 @@ app.post('/merchant/register-terminal', async (req, res) => {
 
   const existingTerminal = merchant.terminals.find(t => t.terminal_id === terminal_id);
   if (existingTerminal) {
-    return res.status(409).json({ status: 'ERROR', message: 'Terminal already exists' });
+    // Terminal already exists — return existing secret key so app can re-register
+    return res.json({
+      status:     'SUCCESS',
+      terminal_id,
+      secret_key: existingTerminal.secret_key,
+      message:    'Terminal already registered — credentials returned'
+    });
   }
 
   const secret = crypto.randomBytes(32).toString('hex');
