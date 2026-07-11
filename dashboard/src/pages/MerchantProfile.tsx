@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getMerchants, registerMerchant } from "../api/merchants";
+import { getMerchants, registerMerchant, deleteMerchant } from "../api/merchants";
 import { Merchant } from "../types/merchant";
 
 const BRAND_PRIMARY = "#0052FF";
@@ -159,9 +159,33 @@ export const MerchantProfile: React.FC = () => {
                   {m.merchant_id}
                 </span>
               </div>
-              <div style={{ textAlign: "right", fontSize: 13, color: "#888" }}>
-                <div>{m.country} · {m.currency}</div>
-                <div>{new Date(m.created_at).toLocaleDateString()}</div>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                <div style={{ textAlign: "right", fontSize: 13, color: "#888" }}>
+                  <div>{m.country} · {m.currency}</div>
+                  <div>{new Date(m.created_at).toLocaleDateString()}</div>
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!window.confirm(`Delete merchant ${m.merchant_id}? This cannot be undone.`)) return;
+                    try {
+                      await deleteMerchant(m.merchant_id);
+                      setMessage({ text: `Merchant "${m.name}" deleted successfully.`, type: "success" });
+                      load();
+                    } catch (err: any) {
+                      setMessage({
+                        text: err.response?.data?.message || "Failed to delete merchant",
+                        type: "error"
+                      });
+                    }
+                  }}
+                  style={{
+                    background: BRAND_DANGER, color: "#fff", border: "none",
+                    padding: "6px 14px", borderRadius: 6, fontWeight: 700,
+                    fontSize: 13, cursor: "pointer"
+                  }}
+                >
+                  Delete
+                </button>
               </div>
             </div>
             <div style={{ marginTop: 14, padding: "10px 14px", background: "#f8f9fa", borderRadius: 8, fontSize: 13 }}>

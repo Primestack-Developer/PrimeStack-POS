@@ -27,6 +27,7 @@ class DeviceRegistrationActivity : AppCompatActivity() {
         val serverUrlInput  = findViewById<EditText>(R.id.serverUrlInput)
         val merchantIdInput = findViewById<EditText>(R.id.merchantIdInput)
         val terminalIdInput = findViewById<EditText>(R.id.terminalIdInput)
+        val secretKeyInput  = findViewById<EditText>(R.id.secretKeyInput)
         val tvStatus        = findViewById<TextView>(R.id.tvStatus)
         val btnRegister     = findViewById<Button>(R.id.btnRegister)
 
@@ -42,13 +43,30 @@ class DeviceRegistrationActivity : AppCompatActivity() {
             val serverUrl  = serverUrlInput.text.toString().trim().trimEnd('/')
             val merchantId = merchantIdInput.text.toString().trim()
             val terminalId = terminalIdInput.text.toString().trim()
+            val secretKey  = secretKeyInput.text.toString().trim()
+
+            if (merchantId.isEmpty() || terminalId.isEmpty()) {
+                Toast.makeText(this, "Please fill in Merchant ID and Device ID", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            // If a secret key is provided manually, skip server registration entirely
+            if (secretKey.isNotEmpty()) {
+                prefs.saveTerminalCredentials(
+                    terminalId     = terminalId,
+                    terminalSecret = secretKey,
+                    merchantId     = merchantId,
+                    merchantName   = merchantId
+                )
+                tvStatus.text = "Status: Configured ✔"
+                Toast.makeText(this, "Device configured successfully!", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this, HomeActivity::class.java))
+                finish()
+                return@setOnClickListener
+            }
 
             if (serverUrl.isEmpty()) {
                 Toast.makeText(this, "Please enter the server URL", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            if (merchantId.isEmpty() || terminalId.isEmpty()) {
-                Toast.makeText(this, "Please fill in Merchant ID and Device ID", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 

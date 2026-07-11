@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getMerchants, registerTerminal } from "../api/merchants";
+import { getMerchants, registerTerminal, deleteTerminal } from "../api/merchants";
 import { Merchant } from "../types/merchant";
 
 const P = "#0052FF";
@@ -180,6 +180,27 @@ export const Terminals: React.FC = () => {
                     <div style={{ fontSize: 12, color: "#888", marginTop: 8 }}>
                       📱 Use <strong>{t.terminal_id}</strong> in app Device ID field
                     </div>
+                    <button
+                      onClick={async () => {
+                        if (!window.confirm(`Delete terminal ${t.terminal_id}?`)) return;
+                        try {
+                          await deleteTerminal(m.merchant_id, t.terminal_id);
+                          load();
+                        } catch (err: any) {
+                          setMessage({
+                            text: err.response?.data?.message || "Failed to delete terminal",
+                            ok: false
+                          });
+                        }
+                      }}
+                      style={{
+                        marginTop: 10, background: D, color: "#fff", border: "none",
+                        padding: "4px 10px", borderRadius: 5, fontSize: 12,
+                        fontWeight: 700, cursor: "pointer"
+                      }}
+                    >
+                      ✕ Delete
+                    </button>
                   </div>
                 ))}
               </div>

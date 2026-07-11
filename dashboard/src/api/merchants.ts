@@ -32,3 +32,13 @@ export async function registerTerminal(terminalData: {
   const res = await api.post("/merchant/register-terminal", terminalData);
   return res.data;
 }
+
+export async function deleteMerchant(merchantId: string) {
+  const res = await api.delete(`/merchants/${merchantId}`);
+  return res.data;
+}
+
+export async function deleteTerminal(merchantId: string, terminalId: string) {
+  const res = await api.delete(`/merchants/${merchantId}/terminals/${terminalId}`);
+  return res.data;
+}

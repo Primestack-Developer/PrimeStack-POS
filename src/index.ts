@@ -320,6 +320,37 @@ app.get('/merchants/:merchant_id/terminals', async (req, res) => {
   res.json(merchant.terminals);
 });
 
+// Delete a merchant
+app.delete('/merchants/:merchant_id', async (req, res) => {
+  try {
+    const result = await MerchantModel.deleteOne({ merchant_id: req.params.merchant_id });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'Merchant not found' });
+    }
+    // Also delete the wallet
+    await MerchantWalletModel.deleteOne({ merchant_id: req.params.merchant_id });
+    res.json({ status: 'SUCCESS', message: 'Merchant deleted' });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Delete a specific terminal from a merchant
+app.delete('/merchants/:merchant_id/terminals/:terminal_id', async (req, res) => {
+  try {
+    const result = await MerchantModel.updateOne(
+      { merchant_id: req.params.merchant_id },
+      { $pull: { terminals: { terminal_id: req.params.terminal_id } } }
+    );
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Merchant not found' });
+    }
+    res.json({ status: 'SUCCESS', message: 'Terminal deleted' });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 // Chargeback API
 app.post('/chargeback/create', async (req, res) => {
   try {

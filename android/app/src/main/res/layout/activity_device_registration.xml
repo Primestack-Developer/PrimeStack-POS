@@ -83,6 +83,24 @@
             android:background="@drawable/border_edittext"
             android:layout_marginTop="8dp" />
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Secret Key (optional):"
+            android:textColor="@color/primestack_secondary"
+            android:textSize="14sp"
+            android:layout_marginTop="24dp" />
+
+        <EditText
+            android:id="@+id/secretKeyInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Leave empty to auto-generate"
+            android:inputType="text"
+            android:padding="16dp"
+            android:background="@drawable/border_edittext"
+            android:layout_marginTop="8dp" />
+
         <Button
             android:id="@+id/btnRegister"
             android:layout_width="match_parent"
