@@ -31,11 +31,13 @@ class MotoActivity : AppCompatActivity() {
 
         prefs  = PrefsManager(this)
         amount = intent.getDoubleExtra("AMOUNT", 0.0)
-        val txType = intent.getStringExtra("TX_TYPE") ?: "SALE"
+        val txType    = intent.getStringExtra("TX_TYPE") ?: "SALE"
+        val isOffline = intent.getBooleanExtra("OFFLINE", false)
 
         val df         = DecimalFormat("0.00")
         val btnMotoPay = findViewById<Button>(R.id.btnMotoPay)
-        btnMotoPay.text = "${txType} AED ${df.format(amount)}"
+        val modeLabel  = if (isOffline) "OFFLINE" else ""
+        btnMotoPay.text = "$txType $modeLabel AED ${df.format(amount)}".trim()
 
         val panInput  = findViewById<EditText>(R.id.panInput)
         val expInput  = findViewById<EditText>(R.id.expInput)
@@ -106,7 +108,7 @@ class MotoActivity : AppCompatActivity() {
 
             btnMotoPay.isEnabled = false
             btnMotoPay.text = "Processing..."
-            sendMotoTransaction(pan, expMonth, expYear, cvv.isNotEmpty(), txType)
+            sendMotoTransaction(pan, expMonth, expYear, cvv.isNotEmpty(), txType, isOffline)
         }
     }
 
@@ -116,7 +118,8 @@ class MotoActivity : AppCompatActivity() {
         expMonth: String,
         expYear: String,
         cvvPresent: Boolean,
-        txType: String = "SALE"
+        txType: String = "SALE",
+        isOffline: Boolean = false
     ): String {
         val secret = prefs.getTerminalSecret() ?: ""
 
@@ -144,7 +147,7 @@ class MotoActivity : AppCompatActivity() {
                 "cvv_present"  to cvvPresent
             ),
             "transaction_flags" to mapOf(
-                "offline"   to false,
+                "offline"   to isOffline,
                 "moto"      to true,
                 "recurring" to false
             )
@@ -167,9 +170,10 @@ class MotoActivity : AppCompatActivity() {
         expMonth: String,
         expYear: String,
         cvvPresent: Boolean,
-        txType: String = "SALE"
+        txType: String = "SALE",
+        isOffline: Boolean = false
     ) {
-        val json    = buildMotoPayload(pan, expMonth, expYear, cvvPresent, txType)
+        val json    = buildMotoPayload(pan, expMonth, expYear, cvvPresent, txType, isOffline)
         val body    = json.toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
         val url     = "${prefs.getServerUrl()}/1016/transaction"
         val request = Request.Builder().url(url).post(body).build()
