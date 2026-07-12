@@ -85,7 +85,7 @@
                 android:layout_marginStart="6dp" />
         </LinearLayout>
 
-        <!-- Row 3: Settings + Sync -->
+        <!-- Row 3: Settings + History -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -105,17 +105,29 @@
                 android:layout_marginEnd="6dp" />
 
             <Button
-                android:id="@+id/btnSyncOffline"
+                android:id="@+id/btnHistory"
                 android:layout_width="0dp"
                 android:layout_height="60dp"
                 android:layout_weight="1"
-                android:text="SYNC OFFLINE"
+                android:text="TRANSACTIONS"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:background="@color/white"
                 android:textColor="@color/primestack_primary"
                 android:layout_marginStart="6dp" />
         </LinearLayout>
+
+        <!-- Offline Sync — prominent, shows pending count -->
+        <Button
+            android:id="@+id/btnSyncOffline"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:text="🔄 SYNC OFFLINE TRANSACTIONS"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:background="@color/primestack_secondary"
+            android:textColor="@color/white"
+            android:layout_marginTop="10dp" />
 
         <!-- Cash-Out -->
         <Button

@@ -6,6 +6,7 @@ import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.primestack.taptopay.data.db.AppDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -32,6 +33,22 @@ class HomeActivity : AppCompatActivity() {
         val btnSyncOffline = findViewById<Button>(R.id.btnSyncOffline)
         val btnCashOut     = findViewById<Button>(R.id.btnCashOut)
         val btnWallet      = findViewById<Button>(R.id.btnWallet)
+
+        // Load pending offline count and show on sync button
+        CoroutineScope(Dispatchers.IO).launch {
+            val db      = AppDatabase.getInstance(this@HomeActivity)
+            val pending = db.offlineDao().getPending()
+            withContext(Dispatchers.Main) {
+                if (pending.isEmpty()) {
+                    btnSyncOffline.text = "🔄 SYNC OFFLINE TRANSACTIONS"
+                    btnSyncOffline.alpha = 0.5f
+                } else {
+                    btnSyncOffline.text = "🔄 SYNC OFFLINE (${pending.size} PENDING)"
+                    btnSyncOffline.alpha = 1.0f
+                    btnSyncOffline.setBackgroundColor(getColor(R.color.primestack_danger))
+                }
+            }
+        }
 
         btnSale.setOnClickListener {
             startActivity(Intent(this, AmountActivity::class.java))
@@ -67,7 +84,6 @@ class HomeActivity : AppCompatActivity() {
             startActivity(Intent(this, WalletActivity::class.java))
         }
 
-        // ── Real offline sync ──────────────────────────────────────────
         btnSyncOffline.setOnClickListener {
             btnSyncOffline.isEnabled = false
             btnSyncOffline.text = "Syncing…"
@@ -81,7 +97,6 @@ class HomeActivity : AppCompatActivity() {
                 }
 
                 btnSyncOffline.isEnabled = true
-                btnSyncOffline.text = "SYNC OFFLINE"
 
                 val msg = when {
                     result.synced == 0 && result.failed == 0 ->
@@ -92,6 +107,19 @@ class HomeActivity : AppCompatActivity() {
                         "Done — synced ${result.synced}, failed ${result.failed}"
                 }
                 Toast.makeText(this@HomeActivity, msg, Toast.LENGTH_LONG).show()
+
+                // Refresh pending count on button
+                val db      = AppDatabase.getInstance(this@HomeActivity)
+                val pending = withContext(Dispatchers.IO) { db.offlineDao().getPending() }
+                if (pending.isEmpty()) {
+                    btnSyncOffline.text = "🔄 SYNC OFFLINE TRANSACTIONS"
+                    btnSyncOffline.alpha = 0.5f
+                    btnSyncOffline.setBackgroundColor(getColor(R.color.primestack_secondary))
+                } else {
+                    btnSyncOffline.text = "🔄 SYNC OFFLINE (${pending.size} PENDING)"
+                    btnSyncOffline.alpha = 1.0f
+                    btnSyncOffline.setBackgroundColor(getColor(R.color.primestack_danger))
+                }
             }
         }
     }
