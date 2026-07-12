@@ -85,37 +85,17 @@
                 android:layout_marginStart="6dp" />
         </LinearLayout>
 
-        <!-- Row 3: Settings + History -->
-        <LinearLayout
+        <!-- Row 3: Settings -->
+        <Button
+            android:id="@+id/btnSettings"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="10dp">
-
-            <Button
-                android:id="@+id/btnSettings"
-                android:layout_width="0dp"
-                android:layout_height="60dp"
-                android:layout_weight="1"
-                android:text="SETTINGS"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:background="@color/white"
-                android:textColor="@color/primestack_primary"
-                android:layout_marginEnd="6dp" />
-
-            <Button
-                android:id="@+id/btnHistory"
-                android:layout_width="0dp"
-                android:layout_height="60dp"
-                android:layout_weight="1"
-                android:text="TRANSACTIONS"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:background="@color/white"
-                android:textColor="@color/primestack_primary"
-                android:layout_marginStart="6dp" />
-        </LinearLayout>
+            android:layout_height="60dp"
+            android:text="SETTINGS"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:background="@color/white"
+            android:textColor="@color/primestack_primary"
+            android:layout_marginTop="10dp" />
 
         <!-- Offline Sync — prominent, shows pending count -->
         <Button

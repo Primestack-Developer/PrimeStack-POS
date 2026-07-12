@@ -198,6 +198,12 @@ app.use((req, res, next) => {
     return next();
   }
 
+  // Wallet balance read — POS app reads its own merchant wallet by merchant_id
+  // No JWT needed — merchant_id is not secret, balance is read-only
+  if (req.method === 'GET' && req.path.startsWith('/wallet/') && !req.path.includes('/ledger') && !req.path.includes('/payouts')) {
+    return next();
+  }
+
   // Public paths
   if (open.includes(req.path)) {
     return next();
