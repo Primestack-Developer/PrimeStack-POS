@@ -15,7 +15,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
 import java.text.DecimalFormat
-import java.time.Instant
+
 
 class CashOutActivity : AppCompatActivity() {
 
@@ -59,7 +59,7 @@ class CashOutActivity : AppCompatActivity() {
             "protocol"       to "101.6",
             "message_type"   to "CASH_OUT",
             "transaction_id" to "TXN-${System.currentTimeMillis()}",
-            "timestamp"      to Instant.now().toString(),
+            "timestamp"      to java.util.Date().let { java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).also { sdf -> sdf.timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(it) },
             "merchant" to mapOf(
                 "merchant_id" to (prefs.getMerchantId() ?: ""),
                 "store_id"    to "STR-01",

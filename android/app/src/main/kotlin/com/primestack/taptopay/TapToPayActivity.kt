@@ -13,7 +13,7 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
-import java.time.Instant
+
 
 class TapToPayActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
 
@@ -118,7 +118,7 @@ class TapToPayActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
             "protocol"       to "101.6",
             "message_type"   to "SALE",
             "transaction_id" to "TXN-${System.currentTimeMillis()}",
-            "timestamp"      to Instant.now().toString(),
+            "timestamp"      to java.util.Date().let { java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).also { sdf -> sdf.timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(it) },
             "merchant"       to mapOf(
                 "merchant_id" to (prefs.getMerchantId() ?: ""),
                 "store_id"    to "STR-01",

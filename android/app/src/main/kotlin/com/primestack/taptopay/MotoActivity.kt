@@ -9,7 +9,6 @@ import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.stripe.android.Stripe
-import com.stripe.android.model.CardParams
 import com.stripe.android.model.PaymentMethodCreateParams
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,7 +20,10 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
 import java.text.DecimalFormat
-import java.time.Instant
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 class MotoActivity : AppCompatActivity() {
 
@@ -172,7 +174,7 @@ class MotoActivity : AppCompatActivity() {
 
                 // Create PaymentMethod on Stripe servers
                 val pmResult = withContext(Dispatchers.IO) {
-                    stripe.createPaymentMethod(cardParams)
+                    stripe.createPaymentMethodSynchronous(cardParams)
                 }
 
                 val pmId = pmResult.id
@@ -215,7 +217,7 @@ class MotoActivity : AppCompatActivity() {
             "protocol"       to "101.6",
             "message_type"   to txType,
             "transaction_id" to "TXN-${System.currentTimeMillis()}",
-            "timestamp"      to Instant.now().toString(),
+            "timestamp"      to SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date()),
             "merchant" to mapOf(
                 "merchant_id" to (prefs.getMerchantId() ?: ""),
                 "store_id"    to "STR-01",
@@ -291,7 +293,7 @@ class MotoActivity : AppCompatActivity() {
                 put("protocol",       "101.6")
                 put("message_type",   "${txType}_RESPONSE")
                 put("transaction_id", "TXN-${System.currentTimeMillis()}")
-                put("timestamp",      Instant.now().toString())
+                put("timestamp",      SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date()))
                 put("result", JSONObject().apply {
                     put("status",      "PENDING")
                     put("code",        "OF")
