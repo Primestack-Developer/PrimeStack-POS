@@ -200,6 +200,17 @@ app.get('/stripe/config', (req, res) => {
   });
 });
 
+// POS terminal configuration — floor limits and feature flags
+app.get('/pos/config', (req, res) => {
+  res.json({
+    floor_limit_aed:      parseFloat(process.env.FLOOR_LIMIT_AED  || "100"),
+    floor_limit_usd:      parseFloat(process.env.FLOOR_LIMIT_USD  || "30"),
+    floor_limit_eur:      parseFloat(process.env.FLOOR_LIMIT_EUR  || "25"),
+    offline_nfc_enabled:  process.env.OFFLINE_NFC_ENABLED !== "false",
+    version:              "2.0"
+  });
+});
+
 // ─────────────────────────────────────────────────────────────
 // Global auth middleware
 // Protects all routes EXCEPT: /health, /auth/*, /1016/*
@@ -210,6 +221,7 @@ app.use((req, res, next) => {
   const open = [
     '/health',
     '/stripe/config',
+    '/pos/config',
     '/auth/login',
     '/auth/recover',
     '/auth/verify',
