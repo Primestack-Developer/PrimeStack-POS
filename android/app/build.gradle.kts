@@ -73,6 +73,9 @@ dependencies {
     // Network
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
+    // Stripe Android SDK — for client-side card tokenization
+    implementation("com.stripe:stripe-android:20.52.0")
+
     // Room — KSP-based code generation
     val roomVersion = "2.6.1"
     implementation("androidx.room:room-runtime:$roomVersion")

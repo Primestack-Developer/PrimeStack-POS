@@ -192,6 +192,14 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', service: 'PrimeStack 101.6 Host' });
 });
 
+// Returns Stripe publishable key to the Android app for client-side tokenization
+app.get('/stripe/config', (req, res) => {
+  res.json({
+    publishable_key: process.env.STRIPE_PUBLISHABLE_KEY || "",
+    enabled: !!process.env.STRIPE_SECRET_KEY
+  });
+});
+
 // ─────────────────────────────────────────────────────────────
 // Global auth middleware
 // Protects all routes EXCEPT: /health, /auth/*, /1016/*
@@ -201,6 +209,7 @@ app.get('/health', (req, res) => {
 app.use((req, res, next) => {
   const open = [
     '/health',
+    '/stripe/config',
     '/auth/login',
     '/auth/recover',
     '/auth/verify',
@@ -548,11 +557,13 @@ app.post('/1016/transaction', async (req, res) => {
     msg.amount.currency = "AED";
   }
 
-  // 5.5. Tokenize PAN for MOTO transactions (PCI compliance)
-  // Save raw PAN before tokenization — needed for Stripe charge
+  // 5.5. Save Stripe payment method token BEFORE tokenization
+  // Android app sends pm_xxx in card.pan field — this is the Stripe token, not a raw PAN
+  // We save it here before the PAN field is cleared/tokenized
   const rawPanForCharge = msg.card.pan || null;
 
-  if (msg.card.entry_mode === "MOTO" && msg.card.pan) {
+  // Only tokenize if it's a raw PAN (not a Stripe pm_xxx token)
+  if (msg.card.entry_mode === "MOTO" && msg.card.pan && !msg.card.pan.startsWith("pm_")) {
     const encrypted = encryptPAN(msg.card.pan);
 
     const token = "TKN-" + crypto.randomBytes(8).toString("hex");
@@ -618,16 +629,13 @@ app.post('/1016/transaction', async (req, res) => {
       break;
 
     case "PREAUTH":
-      // PREAUTH also charges via Stripe — holds the amount on the card
       if (isStripeEnabled() && rawPanForCharge) {
         const stripeResult = await chargeCardWithStripe({
-          amount:         msg.amount.value,
-          currency:       msg.amount.currency,
-          pan:            rawPanForCharge,
-          expiry_month:   msg.card.expiry_month || "",
-          expiry_year:    msg.card.expiry_year  || "",
-          description:    `PrimeStack PREAUTH — ${msg.merchant.merchant_id}`,
-          transaction_id: msg.transaction_id
+          amount:            msg.amount.value,
+          currency:          msg.amount.currency,
+          payment_method_id: rawPanForCharge,
+          description:       `PrimeStack PREAUTH — ${msg.merchant.merchant_id}`,
+          transaction_id:    msg.transaction_id
         });
         if (stripeResult.success) {
           responseStatus        = "APPROVED";
@@ -678,13 +686,11 @@ app.post('/1016/transaction', async (req, res) => {
       } else if (isStripeEnabled() && rawPanForCharge) {
         // Stripe — real card charge for MOTO/contactless with PAN
         const stripeResult = await chargeCardWithStripe({
-          amount:         msg.amount.value,
-          currency:       msg.amount.currency,
-          pan:            rawPanForCharge,
-          expiry_month:   msg.card.expiry_month || "",
-          expiry_year:    msg.card.expiry_year  || "",
-          description:    `PrimeStack POS — ${msg.merchant.merchant_id} — ${msg.transaction_id}`,
-          transaction_id: msg.transaction_id
+          amount:            msg.amount.value,
+          currency:          msg.amount.currency,
+          payment_method_id: rawPanForCharge,  // pm_xxx token from Android app
+          description:       `PrimeStack POS — ${msg.merchant.merchant_id} — ${msg.transaction_id}`,
+          transaction_id:    msg.transaction_id
         });
         if (stripeResult.success) {
           responseStatus        = "APPROVED";
