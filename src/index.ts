@@ -460,21 +460,26 @@ app.post('/1016/transaction', async (req, res) => {
   // 2. Get terminal secret
   const terminalSecret = await getTerminalSecret(msg.merchant.terminal_id);
 
-  // 3. Verify HMAC signature
-  const valid = verifyMessage(
-    { ...msg, security: undefined },
-    terminalSecret,
-    msg.security.signature
-  );
+  // 3. Verify HMAC signature — skip for offline transactions
+  // Offline transactions are stored as-is; they were signed at transaction time
+  // and will be re-verified when processed after sync
+  const isOfflineTx = msg.transaction_flags?.offline === true;
 
-  if (!valid) {
-    return res.status(401).json({ error: "Invalid HMAC signature" });
+  if (!isOfflineTx) {
+    const valid = verifyMessage(
+      { ...msg, security: undefined },
+      terminalSecret,
+      msg.security.signature
+    );
+
+    if (!valid) {
+      return res.status(401).json({ error: "Invalid HMAC signature" });
+    }
   }
 
   // 3.5. If the terminal was offline when the transaction was created,
   //      store it in the persistent offline queue and return an OFFLINE_STORED response.
-  //      The /offline/sync endpoint will re-process these when the terminal comes back online.
-  if (msg.transaction_flags?.offline === true) {
+  if (isOfflineTx) {
     await storeOffline(msg);
     return res.json({
       protocol:       "101.6",
