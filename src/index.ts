@@ -37,6 +37,8 @@ import {
 import { generateReceiptCode } from "./logic/receiptCode.js";
 import { generateSTN, verifySTN, markSTNUsed } from "./logic/stnReceipt.js";
 import { chargeCardWithStripe, isStripeEnabled } from "./logic/stripePayment.js";
+import { handleStripeWebhook } from "./webhooks/stripeWebhook.js";
+import { handleWiseWebhook } from "./webhooks/wiseWebhook.js";
 import { VaultModel } from './models/vault.js';
 import { encryptPAN } from './security/vault.js';
 import { riskScore } from './logic/risk.js';
@@ -105,6 +107,18 @@ app.use(cors({
   ],
   credentials: true
 }));
+
+// ── Stripe webhook — MUST use raw body before express.json() ──
+// Stripe requires the raw request body to verify the signature
+app.post(
+  '/webhooks/stripe',
+  express.raw({ type: 'application/json' }),
+  handleStripeWebhook
+);
+
+// ── Wise webhook — JSON body ──────────────────────────────────
+app.post('/webhooks/wise', express.json(), handleWiseWebhook);
+
 app.use(express.json());
 
 // ─────────────────────────────────────────────────────────────
@@ -190,7 +204,9 @@ app.use((req, res, next) => {
     '/health',
     '/auth/login',
     '/auth/recover',
-    '/auth/verify'
+    '/auth/verify',
+    '/webhooks/stripe',
+    '/webhooks/wise'
   ];
 
   // POS transaction endpoints — authenticated via HMAC, not JWT
