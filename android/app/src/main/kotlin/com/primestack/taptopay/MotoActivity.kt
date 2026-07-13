@@ -8,12 +8,9 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.stripe.android.Stripe
-import com.stripe.android.model.PaymentMethodCreateParams
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -27,12 +24,18 @@ import java.util.TimeZone
 
 class MotoActivity : AppCompatActivity() {
 
-    private val client = OkHttpClient()
-    private var amount: Double  = 0.0
-    private var txType: String  = "SALE"
+    private val client            = OkHttpClient()
+    private var amount: Double    = 0.0
+    private var txType: String    = "SALE"
     private var isOffline: Boolean = false
     private lateinit var prefs: PrefsManager
-    private var stripePublishableKey: String = ""
+    private var stripePubKey: String = ""
+
+    private fun nowUtc(): String {
+        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
+        sdf.timeZone = TimeZone.getTimeZone("UTC")
+        return sdf.format(Date())
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,47 +54,41 @@ class MotoActivity : AppCompatActivity() {
         val panInput  = findViewById<EditText>(R.id.panInput)
         val expInput  = findViewById<EditText>(R.id.expInput)
         val cvvInput  = findViewById<EditText>(R.id.cvvInput)
-        val nameInput = findViewById<EditText>(R.id.nameInput)
 
         // Fetch Stripe publishable key from backend
-        fetchStripeKey()
+        fetchStripePubKey()
 
-        // Auto-format card number
-        var isFormatting = false
+        // Auto-format card number with spaces every 4 digits
+        var formattingPan = false
         panInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                if (isFormatting) return
-                isFormatting = true
-                val digits = s.toString().filter { it.isDigit() }
-                if (digits.length <= 16) {
-                    val formatted = digits.chunked(4).joinToString(" ")
-                    if (formatted != s.toString()) s?.replace(0, s.length, formatted)
-                } else {
-                    val trimmed = digits.take(16).chunked(4).joinToString(" ")
-                    s?.replace(0, s.length, trimmed)
-                }
-                isFormatting = false
+                if (formattingPan) return
+                formattingPan = true
+                val digits    = s.toString().filter { it.isDigit() }.take(16)
+                val formatted = digits.chunked(4).joinToString(" ")
+                if (formatted != s.toString()) s?.replace(0, s.length, formatted)
+                formattingPan = false
             }
         })
 
-        // Auto-format expiry
-        var isFormattingExp = false
+        // Auto-format expiry MM / YY
+        var formattingExp = false
         expInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                if (isFormattingExp) return
-                isFormattingExp = true
-                val digits = s.toString().filter { it.isDigit() }.take(4)
+                if (formattingExp) return
+                formattingExp = true
+                val digits    = s.toString().filter { it.isDigit() }.take(4)
                 val formatted = when (digits.length) {
                     0, 1 -> digits
                     2    -> "$digits / "
                     else -> "${digits.substring(0, 2)} / ${digits.substring(2)}"
                 }
                 if (formatted != s.toString()) s?.replace(0, s.length, formatted)
-                isFormattingExp = false
+                formattingExp = false
             }
         })
 
@@ -99,125 +96,129 @@ class MotoActivity : AppCompatActivity() {
             val pan      = panInput.text.toString().filter { it.isDigit() }
             val expText  = expInput.text.toString()
             val expParts = expText.split("/").map { it.trim() }
-            val expMonth = if (expParts.size > 0) expParts[0] else ""
-            val expYear  = if (expParts.size > 1) expParts[1] else ""
+            val expMonth = expParts.getOrElse(0) { "" }
+            val expYear  = expParts.getOrElse(1) { "" }
             val cvv      = cvvInput.text.toString().trim()
 
             if (pan.length < 13) {
-                Toast.makeText(this, "Please enter a valid card number", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Enter a valid card number", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             if (expMonth.isEmpty() || expYear.isEmpty()) {
-                Toast.makeText(this, "Please enter expiry date", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Enter expiry date", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
             btnMotoPay.isEnabled = false
-            btnMotoPay.text = "Processing..."
+            btnMotoPay.text = "Processing…"
 
             if (isOffline) {
-                // Offline — skip Stripe tokenization, store directly
-                val json = buildMotoPayload("OFFLINE-NO-TOKEN", expMonth, expYear, cvv.isNotEmpty(), txType, true)
-                CoroutineScope(Dispatchers.IO).launch {
-                    OfflineSyncManager.saveOffline(this@MotoActivity, json)
-                }
-                val offlineResult = buildOfflineResultJson(amount, txType)
-                val intent = Intent(this, ResultActivity::class.java)
-                intent.putExtra("RESULT", offlineResult)
-                startActivity(intent)
-                finish()
+                // Offline — store directly, no Stripe call
+                val json = buildPayload("OFFLINE_CARD", expMonth, expYear, cvv.isNotEmpty())
+                storeOfflineAndShow(json)
             } else {
-                // Online — tokenize with Stripe first
-                tokenizeAndCharge(pan, expMonth, expYear, cvv)
+                // Online — tokenize with Stripe first, then charge
+                tokenizeWithStripe(pan, expMonth, expYear, cvv)
             }
         }
     }
 
-    private fun fetchStripeKey() {
+    // ── Fetch Stripe publishable key from backend ─────────────────
+    private fun fetchStripePubKey() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val request  = Request.Builder().url("${prefs.getServerUrl()}/stripe/config").get().build()
-                val response = client.newCall(request).execute()
-                val body     = response.body?.string()
+                val req = Request.Builder()
+                    .url("${prefs.getServerUrl()}/stripe/config")
+                    .get().build()
+                val res  = client.newCall(req).execute()
+                val body = res.body?.string()
                 if (body != null) {
-                    val json = JSONObject(body)
-                    stripePublishableKey = json.optString("publishable_key", "")
+                    stripePubKey = JSONObject(body).optString("publishable_key", "")
                 }
-            } catch (e: Exception) {
-                // Will fall back to direct send if key not available
-            }
+            } catch (_: Exception) {}
         }
     }
 
-    private fun tokenizeAndCharge(pan: String, expMonth: String, expYear: String, cvv: String) {
-        if (stripePublishableKey.isEmpty()) {
-            // No Stripe key — send directly (will fail on server, but at least try)
-            val json = buildMotoPayload(pan, expMonth, expYear, cvv.isNotEmpty(), txType, false)
-            sendToBackend(json)
+    // ── Tokenize card with Stripe API (direct REST, no SDK) ───────
+    private fun tokenizeWithStripe(
+        pan: String,
+        expMonth: String,
+        expYear: String,
+        cvv: String
+    ) {
+        if (stripePubKey.isEmpty()) {
+            Toast.makeText(this, "Stripe not configured. Contact support.", Toast.LENGTH_LONG).show()
+            resetButton()
             return
         }
 
-        CoroutineScope(Dispatchers.Main).launch {
+        CoroutineScope(Dispatchers.IO).launch {
             try {
-                val stripe = Stripe(this@MotoActivity, stripePublishableKey)
-
-                // Build card params for Stripe tokenization
                 val fullYear = if (expYear.length == 2) "20$expYear" else expYear
-                val cardParams = PaymentMethodCreateParams.create(
-                    PaymentMethodCreateParams.Card.Builder()
-                        .setNumber(pan)
-                        .setExpiryMonth(expMonth.toIntOrNull() ?: 1)
-                        .setExpiryYear(fullYear.toIntOrNull() ?: 2026)
-                        .setCvc(cvv.ifEmpty { null })
-                        .build()
-                )
 
-                // Create PaymentMethod on Stripe servers
-                val pmResult = withContext(Dispatchers.IO) {
-                    stripe.createPaymentMethodSynchronous(cardParams)
-                }
+                // POST to Stripe to create a PaymentMethod — card never touches our server
+                val formBody = FormBody.Builder()
+                    .add("type",              "card")
+                    .add("card[number]",      pan)
+                    .add("card[exp_month]",   expMonth)
+                    .add("card[exp_year]",    fullYear)
+                    .apply { if (cvv.isNotEmpty()) add("card[cvc]", cvv) }
+                    .build()
 
-                val pmId = pmResult.id
-                if (pmId == null) {
-                    runOnUiThread {
-                        Toast.makeText(this@MotoActivity, "Card tokenization failed", Toast.LENGTH_LONG).show()
-                        val btnMotoPay = findViewById<Button>(R.id.btnMotoPay)
-                        btnMotoPay.isEnabled = true
-                        btnMotoPay.text = "$txType AED ${DecimalFormat("0.00").format(amount)}"
+                val req = Request.Builder()
+                    .url("https://api.stripe.com/v1/payment_methods")
+                    .addHeader("Authorization", "Bearer $stripePubKey")
+                    .addHeader("Stripe-Version", "2024-04-10")
+                    .post(formBody)
+                    .build()
+
+                val res  = client.newCall(req).execute()
+                val body = res.body?.string() ?: ""
+
+                if (res.isSuccessful) {
+                    val pmId = JSONObject(body).optString("id", "")
+                    if (pmId.startsWith("pm_")) {
+                        // Got a valid Stripe token — send to our backend
+                        val json = buildPayload(pmId, expMonth, expYear, cvv.isNotEmpty())
+                        runOnUiThread { sendToBackend(json) }
+                    } else {
+                        runOnUiThread {
+                            Toast.makeText(this@MotoActivity, "Tokenization failed: $body", Toast.LENGTH_LONG).show()
+                            resetButton()
+                        }
                     }
-                    return@launch
+                } else {
+                    val errMsg = try {
+                        JSONObject(body).getJSONObject("error").optString("message", "Card error")
+                    } catch (_: Exception) { "Card declined by Stripe" }
+
+                    runOnUiThread {
+                        Toast.makeText(this@MotoActivity, errMsg, Toast.LENGTH_LONG).show()
+                        resetButton()
+                    }
                 }
-
-                // Send pm_xxx token to backend instead of raw PAN
-                val json = buildMotoPayload(pmId, expMonth, expYear, cvv.isNotEmpty(), txType, false)
-                sendToBackend(json)
-
             } catch (e: Exception) {
                 runOnUiThread {
-                    Toast.makeText(this@MotoActivity, "Card error: ${e.message}", Toast.LENGTH_LONG).show()
-                    val btnMotoPay = findViewById<Button>(R.id.btnMotoPay)
-                    btnMotoPay.isEnabled = true
-                    btnMotoPay.text = "$txType AED ${DecimalFormat("0.00").format(amount)}"
+                    Toast.makeText(this@MotoActivity, "Network error: ${e.message}", Toast.LENGTH_LONG).show()
+                    resetButton()
                 }
             }
         }
     }
 
-    fun buildMotoPayload(
-        panOrToken: String,
+    // ── Build 101.6 signed payload ────────────────────────────────
+    private fun buildPayload(
+        pmIdOrToken: String,
         expMonth: String,
         expYear: String,
-        cvvPresent: Boolean,
-        txType: String = "SALE",
-        isOffline: Boolean = false
+        cvvPresent: Boolean
     ): String {
         val secret = prefs.getTerminalSecret() ?: ""
-
-        val sale = mutableMapOf<String, Any>(
+        val sale   = mutableMapOf<String, Any>(
             "protocol"       to "101.6",
             "message_type"   to txType,
             "transaction_id" to "TXN-${System.currentTimeMillis()}",
-            "timestamp"      to SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date()),
+            "timestamp"      to nowUtc(),
             "merchant" to mapOf(
                 "merchant_id" to (prefs.getMerchantId() ?: ""),
                 "store_id"    to "STR-01",
@@ -225,13 +226,10 @@ class MotoActivity : AppCompatActivity() {
                 "country"     to "AE",
                 "currency"    to "AED"
             ),
-            "amount" to mapOf(
-                "value"    to amount,
-                "currency" to "AED"
-            ),
+            "amount" to mapOf("value" to amount, "currency" to "AED"),
             "card" to mapOf(
                 "entry_mode"   to "MOTO",
-                "pan"          to panOrToken,   // pm_xxx Stripe token or raw PAN for offline
+                "pan"          to pmIdOrToken,   // pm_xxx from Stripe, or OFFLINE_CARD
                 "expiry_month" to expMonth,
                 "expiry_year"  to expYear,
                 "cvv_present"  to cvvPresent
@@ -243,71 +241,82 @@ class MotoActivity : AppCompatActivity() {
             )
         )
 
-        val jsonWithoutSecurity = JSONObject(sale as Map<*, *>).toString()
-        val signature = HmacUtil.sign(jsonWithoutSecurity, secret)
-
+        val jsonNoSec = JSONObject(sale as Map<*, *>).toString()
+        val sig       = HmacUtil.sign(jsonNoSec, secret)
         sale["security"] = mapOf(
             "nonce"     to "N-${System.currentTimeMillis()}",
-            "signature" to signature,
+            "signature" to sig,
             "algorithm" to "HMAC_SHA256"
         )
-
         return JSONObject(sale).toString()
     }
 
+    // ── Send to our backend ───────────────────────────────────────
     private fun sendToBackend(json: String) {
         val body    = json.toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
-        val url     = "${prefs.getServerUrl()}/1016/transaction"
-        val request = Request.Builder().url(url).post(body).build()
+        val request = Request.Builder()
+            .url("${prefs.getServerUrl()}/1016/transaction")
+            .post(body)
+            .build()
 
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
+                // Network failed after tokenization — store offline
                 CoroutineScope(Dispatchers.IO).launch {
                     OfflineSyncManager.saveOffline(this@MotoActivity, json)
                 }
                 runOnUiThread {
-                    val offlineResult = buildOfflineResultJson(amount, txType)
-                    val intent = Intent(this@MotoActivity, ResultActivity::class.java)
-                    intent.putExtra("RESULT", offlineResult)
-                    startActivity(intent)
-                    finish()
+                    navigateToResult(buildOfflineResult())
                 }
             }
 
             override fun onResponse(call: Call, response: Response) {
                 val result = response.body?.string()
-                runOnUiThread {
-                    val intent = Intent(this@MotoActivity, ResultActivity::class.java)
-                    intent.putExtra("RESULT", result)
-                    startActivity(intent)
-                    finish()
-                }
+                runOnUiThread { navigateToResult(result) }
             }
         })
     }
 
-    private fun buildOfflineResultJson(amount: Double, txType: String): String {
-        return try {
-            val df = DecimalFormat("0.00")
-            JSONObject().apply {
-                put("protocol",       "101.6")
-                put("message_type",   "${txType}_RESPONSE")
-                put("transaction_id", "TXN-${System.currentTimeMillis()}")
-                put("timestamp",      SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date()))
-                put("result", JSONObject().apply {
-                    put("status",      "PENDING")
-                    put("code",        "OF")
-                    put("description", "Stored offline — will sync when connection is restored")
-                    put("auth_code",   "OFFLINE")
-                    put("rrn",         "")
-                })
-                put("amount", JSONObject().apply {
-                    put("value",    amount)
-                    put("currency", "AED")
-                })
-            }.toString()
-        } catch (e: Exception) {
-            """{"result":{"status":"PENDING","code":"OF","description":"Stored offline"}}"""
+    // ── Offline storage ───────────────────────────────────────────
+    private fun storeOfflineAndShow(json: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            OfflineSyncManager.saveOffline(this@MotoActivity, json)
+            runOnUiThread { navigateToResult(buildOfflineResult()) }
         }
+    }
+
+    private fun buildOfflineResult(): String {
+        val df = DecimalFormat("0.00")
+        return JSONObject().apply {
+            put("protocol",       "101.6")
+            put("message_type",   "${txType}_RESPONSE")
+            put("transaction_id", "TXN-${System.currentTimeMillis()}")
+            put("timestamp",      nowUtc())
+            put("result", JSONObject().apply {
+                put("status",      "PENDING")
+                put("code",        "OF")
+                put("description", "Stored offline — will sync when connected")
+                put("auth_code",   "OFFLINE")
+                put("rrn",         "")
+            })
+            put("amount", JSONObject().apply {
+                put("value",    amount)
+                put("currency", "AED")
+            })
+        }.toString()
+    }
+
+    private fun navigateToResult(result: String?) {
+        val intent = Intent(this, ResultActivity::class.java)
+        intent.putExtra("RESULT", result)
+        startActivity(intent)
+        finish()
+    }
+
+    private fun resetButton() {
+        val df         = DecimalFormat("0.00")
+        val btnMotoPay = findViewById<Button>(R.id.btnMotoPay)
+        btnMotoPay.isEnabled = true
+        btnMotoPay.text = "$txType AED ${df.format(amount)}"
     }
 }
