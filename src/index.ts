@@ -27,7 +27,6 @@ import { ChargebackModel } from './models/chargeback.js';
 import { convert } from './logic/currency.js';
 import { routeToAcquirer } from "./logic/router.js";
 import { processNMIPayment, refundNMIPayment, voidNMIPayment, NMIResponse } from "./logic/acquirers/nmi.js";
-import { processFinixPayment, refundFinixPayment, voidFinixPayment, FinixPaymentResponse } from "./logic/acquirers/finix.js";
 import { 
   initiateAdminCashout,
   verifyAndProcessAdminCashout,
@@ -655,79 +654,54 @@ app.post('/1016/transaction', async (req, res) => {
       break;
 
     case "SALE":
-      // Call real acquirer based on routing
+      // Route: NMI if configured, otherwise Stripe
       if (acquirer === "NMI" && process.env.NMI_SECURITY_KEY) {
         acquirerResponse = await processNMIPayment({
-          amount: msg.amount.value,
-          currency: msg.amount.currency,
-          token: msg.card.token,
+          amount:         msg.amount.value,
+          currency:       msg.amount.currency,
+          token:          msg.card.token,
           transaction_id: msg.transaction_id,
-          merchant_id: msg.merchant.merchant_id,
-          terminal_id: msg.merchant.terminal_id
+          merchant_id:    msg.merchant.merchant_id,
+          terminal_id:    msg.merchant.terminal_id
         });
-        
         if (acquirerResponse.response === "1") {
-          responseStatus = "APPROVED";
-          responseCode = "00";
-          responseDescription = acquirerResponse.responsetext || "Approved";
-          acquirerAuthCode = acquirerResponse.authcode;
+          responseStatus        = "APPROVED";
+          responseCode          = "00";
+          responseDescription   = acquirerResponse.responsetext || "Approved";
+          acquirerAuthCode      = acquirerResponse.authcode;
           acquirerTransactionId = acquirerResponse.transactionid;
         } else {
-          responseStatus = "DECLINED";
-          responseCode = acquirerResponse.response_code || "05";
+          responseStatus      = "DECLINED";
+          responseCode        = acquirerResponse.response_code || "05";
           responseDescription = acquirerResponse.responsetext || "Declined";
         }
-      } else if (acquirer === "FINIX") {
-        const finixResponse = await processFinixPayment({
-          amount: msg.amount.value,
-          currency: msg.amount.currency,
-          merchantId: msg.merchant.merchant_id,
-          terminalId: msg.merchant.terminal_id,
-          transactionId: msg.transaction_id,
-          paymentInstrumentId: msg.card.token // Use token if available
+      } else if (isStripeEnabled() && rawPanForCharge) {
+        // Stripe — real card charge for MOTO/contactless with PAN
+        const stripeResult = await chargeCardWithStripe({
+          amount:         msg.amount.value,
+          currency:       msg.amount.currency,
+          pan:            rawPanForCharge,
+          expiry_month:   msg.card.expiry_month || "",
+          expiry_year:    msg.card.expiry_year  || "",
+          description:    `PrimeStack POS — ${msg.merchant.merchant_id} — ${msg.transaction_id}`,
+          transaction_id: msg.transaction_id
         });
-        
-        if (finixResponse.success) {
-          responseStatus = "APPROVED";
-          responseCode = "00";
-          responseDescription = finixResponse.message || "Approved";
-          acquirerAuthCode = finixResponse.authCode;
-          acquirerTransactionId = finixResponse.id;
+        if (stripeResult.success) {
+          responseStatus        = "APPROVED";
+          responseCode          = "00";
+          responseDescription   = "Approved";
+          acquirerAuthCode      = stripeResult.charge_id;
+          acquirerTransactionId = stripeResult.charge_id;
         } else {
-          responseStatus = "DECLINED";
-          responseCode = "05";
-          responseDescription = finixResponse.message || "Declined";
+          responseStatus      = "DECLINED";
+          responseCode        = "05";
+          responseDescription = stripeResult.error || "Declined by card issuer";
         }
       } else {
-        // Stripe — charge real card when PAN is available (MOTO)
-        if (isStripeEnabled() && rawPanForCharge) {
-          const stripeResult = await chargeCardWithStripe({
-            amount:         msg.amount.value,
-            currency:       msg.amount.currency,
-            pan:            rawPanForCharge,
-            expiry_month:   msg.card.expiry_month || "",
-            expiry_year:    msg.card.expiry_year  || "",
-            description:    `PrimeStack MOTO — ${msg.merchant.merchant_id}`,
-            transaction_id: msg.transaction_id
-          });
-
-          if (stripeResult.success) {
-            responseStatus        = "APPROVED";
-            responseCode          = "00";
-            responseDescription   = "Approved";
-            acquirerAuthCode      = stripeResult.charge_id;
-            acquirerTransactionId = stripeResult.charge_id;
-          } else {
-            responseStatus      = "DECLINED";
-            responseCode        = "05";
-            responseDescription = stripeResult.error || "Declined by card issuer";
-          }
-        } else {
-          // No acquirer configured — or no PAN (NFC/token-based)
-          responseStatus      = "APPROVED";
-          responseCode        = "00";
-          responseDescription = "Approved";
-        }
+        // No PAN available (token-only NFC) — approve at protocol level
+        responseStatus      = "APPROVED";
+        responseCode        = "00";
+        responseDescription = "Approved";
       }
       break;
 
