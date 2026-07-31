@@ -35,7 +35,13 @@ import {
 } from "./logic/adminCashout.js";
 import { generateReceiptCode } from "./logic/receiptCode.js";
 import { generateSTN, verifySTN, markSTNUsed } from "./logic/stnReceipt.js";
-import { chargeCardWithStripe, isStripeEnabled } from "./logic/stripePayment.js";
+import {
+  authorizeCardWithStripe,
+  cancelStripeAuthorization,
+  captureStripeAuthorization,
+  chargeCardWithStripe,
+  isStripeEnabled
+} from "./logic/stripePayment.js";
 import { handleStripeWebhook } from "./webhooks/stripeWebhook.js";
 import { handleWiseWebhook } from "./webhooks/wiseWebhook.js";
 import { VaultModel } from './models/vault.js';
@@ -460,38 +466,18 @@ app.post('/1016/transaction', async (req, res) => {
   // 2. Get terminal secret
   const terminalSecret = await getTerminalSecret(msg.merchant.terminal_id);
 
-  // 3. Verify HMAC signature — skip for offline transactions
-  // Offline transactions are stored as-is; they were signed at transaction time
-  // and will be re-verified when processed after sync
   const isOfflineTx = msg.transaction_flags?.offline === true;
-
-  if (!isOfflineTx) {
-    const valid = verifyMessage(
-      { ...msg, security: undefined },
-      terminalSecret,
-      msg.security.signature
-    );
-
-    if (!valid) {
-      return res.status(401).json({ error: "Invalid HMAC signature" });
-    }
+  if (isOfflineTx) {
+    return res.status(400).json({ error: "Offline transactions are disabled. Connect to the payment service and retry." });
   }
 
-  // 3.5. If the terminal was offline when the transaction was created,
-  //      store it in the persistent offline queue and return an OFFLINE_STORED response.
-  if (isOfflineTx) {
-    await storeOffline(msg);
-    return res.json({
-      protocol:       "101.6",
-      message_type:   `${msg.message_type}_RESPONSE`,
-      transaction_id: msg.transaction_id,
-      timestamp:      new Date().toISOString(),
-      result: {
-        status:      "PENDING",
-        code:        "OF",
-        description: "Stored in offline queue — will be processed on next sync"
-      }
-    });
+  const valid = verifyMessage(
+    { ...msg, security: undefined },
+    terminalSecret,
+    msg.security.signature
+  );
+  if (!valid) {
+    return res.status(401).json({ error: "Invalid HMAC signature" });
   }
 
   // 4. Fraud check
@@ -629,25 +615,42 @@ app.post('/1016/transaction', async (req, res) => {
       break;
     
     case "VOID":
-      const originalVoid = await TransactionModel.findOne({ transaction_id: msg.transaction_id });
+      const voidOriginalTransactionId = msg.metadata?.original_transaction_id;
+      const originalVoid = voidOriginalTransactionId
+        ? await TransactionModel.findOne({ transaction_id: voidOriginalTransactionId, message_type: "PREAUTH" })
+        : null;
       if (!originalVoid) {
         responseStatus = "ERROR";
         responseCode = "404";
-        responseDescription = "Original transaction not found";
+        responseDescription = "An original PREAUTH transaction ID is required for void";
       } else {
-        if (originalVoid.result) {
-          originalVoid.result.status = "VOIDED";
-          await originalVoid.save();
+        const paymentIntentId = originalVoid.metadata?.acquirer_transaction_id;
+        if (!isStripeEnabled() || !paymentIntentId) {
+          responseStatus = "ERROR";
+          responseCode = "503";
+          responseDescription = "Original authorization cannot be voided because its processor reference is unavailable";
+        } else {
+          const voidResult = await cancelStripeAuthorization(paymentIntentId);
+          if (voidResult.success) {
+            originalVoid.result.status = "VOIDED";
+            await originalVoid.save();
+            responseStatus = "APPROVED";
+            responseCode = "00";
+            responseDescription = "Authorization voided";
+            acquirerAuthCode = voidResult.charge_id;
+            acquirerTransactionId = voidResult.charge_id;
+          } else {
+            responseStatus = "DECLINED";
+            responseCode = "05";
+            responseDescription = voidResult.error || "Authorization void failed";
+          }
         }
-        responseStatus = "APPROVED";
-        responseCode = "00";
-        responseDescription = "Void approved";
       }
       break;
 
     case "PREAUTH":
       if (isStripeEnabled() && rawPanForCharge) {
-        const stripeResult = await chargeCardWithStripe({
+        const stripeResult = await authorizeCardWithStripe({
           amount:            msg.amount.value,
           currency:          msg.amount.currency,
           payment_method_id: rawPanForCharge,
@@ -657,7 +660,7 @@ app.post('/1016/transaction', async (req, res) => {
         if (stripeResult.success) {
           responseStatus        = "APPROVED";
           responseCode          = "00";
-          responseDescription   = "Preauth approved";
+          responseDescription   = "Authorization approved; capture is required before funds are collected";
           acquirerAuthCode      = stripeResult.charge_id;
           acquirerTransactionId = stripeResult.charge_id;
         } else {
@@ -666,16 +669,42 @@ app.post('/1016/transaction', async (req, res) => {
           responseDescription = stripeResult.error || "Declined";
         }
       } else {
-        responseStatus      = "APPROVED";
-        responseCode        = "00";
-        responseDescription = "Preauth approved";
+        responseStatus      = "ERROR";
+        responseCode        = "503";
+        responseDescription = "A configured processor and a Stripe PaymentMethod are required for pre-authorization";
       }
       break;
 
     case "CAPTURE":
-      responseStatus = "APPROVED";
-      responseCode = "00";
-      responseDescription = "Capture approved";
+      const originalTransactionId = msg.metadata?.original_transaction_id;
+      const originalCapture = originalTransactionId
+        ? await TransactionModel.findOne({ transaction_id: originalTransactionId, message_type: "PREAUTH" })
+        : null;
+      const paymentIntentId = originalCapture?.metadata?.acquirer_transaction_id;
+      if (!originalCapture || !paymentIntentId) {
+        responseStatus = "ERROR";
+        responseCode = "404";
+        responseDescription = "An original PREAUTH transaction ID is required for capture";
+      } else if (!isStripeEnabled()) {
+        responseStatus = "ERROR";
+        responseCode = "503";
+        responseDescription = "Stripe is not configured";
+      } else {
+        const capture = await captureStripeAuthorization(paymentIntentId);
+        if (capture.success) {
+          originalCapture.result.status = "CAPTURED";
+          await originalCapture.save();
+          responseStatus = "APPROVED";
+          responseCode = "00";
+          responseDescription = "Authorization captured";
+          acquirerAuthCode = capture.charge_id;
+          acquirerTransactionId = capture.charge_id;
+        } else {
+          responseStatus = "DECLINED";
+          responseCode = "05";
+          responseDescription = capture.error || "Authorization capture failed";
+        }
+      }
       break;
 
     case "SALE":
@@ -721,10 +750,9 @@ app.post('/1016/transaction', async (req, res) => {
           responseDescription = stripeResult.error || "Declined by card issuer";
         }
       } else {
-        // No PAN available (token-only NFC) — approve at protocol level
-        responseStatus      = "APPROVED";
-        responseCode        = "00";
-        responseDescription = "Approved";
+        responseStatus      = "ERROR";
+        responseCode        = "503";
+        responseDescription = "A configured processor and a Stripe PaymentMethod are required";
       }
       break;
 
@@ -1067,6 +1095,7 @@ app.post('/1016/cashout', async (req, res) => {
   // 3.5. Offline CASH_OUT — store wallet record in CREATED state then queue it.
   //      No debit is attempted now. syncOfflineWalletDebit() handles it on next sync.
   if ((msg.transaction_flags as any).offline === true) {
+    return res.status(400).json({ error: 'Offline cash-out is disabled. Connect to the payment service and retry.' });
     await createOfflineWalletRecord(
       msg.transaction_id,
       msg.external_issuer.server_id,

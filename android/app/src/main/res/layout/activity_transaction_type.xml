@@ -1,172 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/white">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp">
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@color/primestack_primary"
-            android:text="New Transaction"
-            android:textColor="@color/white"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:padding="16dp"
-            android:gravity="center" />
-
-        <!-- Amount display -->
-        <TextView
-            android:id="@+id/tvTxAmount"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="AED 0.00"
-            android:textColor="@color/primestack_primary"
-            android:textSize="40sp"
-            android:textStyle="bold"
-            android:gravity="center"
-            android:padding="20dp"
-            android:layout_marginTop="8dp"
-            android:background="@color/primestack_light_gray" />
-
-        <!-- TRANSACTION TYPE label -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="TRANSACTION TYPE"
-            android:textColor="@color/primestack_gray"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.15"
-            android:layout_marginTop="24dp"
-            android:layout_marginBottom="10dp" />
-
-        <!-- Row 1: SALE + PRE-AUTH -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <Button
-                android:id="@+id/btnTxSale"
-                android:layout_width="0dp"
-                android:layout_height="64dp"
-                android:layout_weight="1"
-                android:text="SALE"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:background="@color/primestack_primary"
-                android:textColor="@color/white"
-                android:layout_marginEnd="6dp" />
-
-            <Button
-                android:id="@+id/btnTxPreAuth"
-                android:layout_width="0dp"
-                android:layout_height="64dp"
-                android:layout_weight="1"
-                android:text="PRE-AUTH"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:background="@color/primestack_light_gray"
-                android:textColor="@color/primestack_primary"
-                android:layout_marginStart="6dp" />
-        </LinearLayout>
-
-        <!-- Row 2: VOID + REFUND -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="8dp">
-
-            <Button
-                android:id="@+id/btnTxVoid"
-                android:layout_width="0dp"
-                android:layout_height="64dp"
-                android:layout_weight="1"
-                android:text="VOID"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:background="@color/primestack_light_gray"
-                android:textColor="@color/primestack_danger"
-                android:layout_marginEnd="6dp" />
-
-            <Button
-                android:id="@+id/btnTxRefund"
-                android:layout_width="0dp"
-                android:layout_height="64dp"
-                android:layout_weight="1"
-                android:text="REFUND"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:background="@color/primestack_light_gray"
-                android:textColor="@color/primestack_danger"
-                android:layout_marginStart="6dp" />
-        </LinearLayout>
-
-        <!-- Selected indicator -->
-        <TextView
-            android:id="@+id/tvSelectedType"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Selected: SALE — tap ONLINE or OFFLINE to continue"
-            android:textColor="@color/primestack_primary"
-            android:textSize="13sp"
-            android:gravity="center"
-            android:padding="10dp"
-            android:layout_marginTop="6dp"
-            android:background="@color/primestack_light_gray" />
-
-        <!-- PROCESSING MODE label -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="PROCESSING MODE"
-            android:textColor="@color/primestack_gray"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.15"
-            android:layout_marginTop="20dp"
-            android:layout_marginBottom="10dp" />
-
-        <!-- ONLINE button -->
-        <Button
-            android:id="@+id/btnModeOnline"
-            android:layout_width="match_parent"
-            android:layout_height="70dp"
-            android:text="🌐  ONLINE — Charge card now"
-            android:textSize="15sp"
-            android:textStyle="bold"
-            android:background="@color/primestack_success"
-            android:textColor="@color/white" />
-
-        <!-- OFFLINE button -->
-        <Button
-            android:id="@+id/btnModeOffline"
-            android:layout_width="match_parent"
-            android:layout_height="70dp"
-            android:text="📵  OFFLINE — Store &amp; sync later"
-            android:textSize="15sp"
-            android:textStyle="bold"
-            android:background="@color/primestack_secondary"
-            android:textColor="@color/white"
-            android:layout_marginTop="10dp"
-            android:layout_marginBottom="8dp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="ONLINE: real Stripe charge immediately\nOFFLINE: stored with STN receipt code, sync when connected"
-            android:textColor="@color/primestack_gray"
-            android:textSize="11sp"
-            android:gravity="center"
-            android:layout_marginBottom="16dp" />
-
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/white">
+  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@color/primestack_primary" android:text="New Online Transaction" android:textColor="@color/white" android:textSize="18sp" android:textStyle="bold" android:padding="16dp" android:gravity="center"/>
+    <TextView android:id="@+id/tvTxAmount" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="AED 0.00" android:textColor="@color/primestack_primary" android:textSize="40sp" android:textStyle="bold" android:gravity="center" android:padding="20dp" android:layout_marginTop="8dp" android:background="@color/primestack_light_gray"/>
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="TRANSACTION TYPE" android:textColor="@color/primestack_gray" android:textSize="11sp" android:textStyle="bold" android:layout_marginTop="24dp" android:layout_marginBottom="10dp"/>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+      <Button android:id="@+id/btnTxSale" android:layout_width="0dp" android:layout_height="64dp" android:layout_weight="1" android:text="SALE" app:backgroundTint="@color/primestack_primary" android:textColor="@color/white" android:layout_marginEnd="6dp"/>
+      <Button android:id="@+id/btnTxPreAuth" android:layout_width="0dp" android:layout_height="64dp" android:layout_weight="1" android:text="PRE-AUTH" app:backgroundTint="@color/primestack_light_gray" android:textColor="@color/primestack_primary" android:layout_marginStart="6dp"/>
     </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp">
+      <Button android:id="@+id/btnTxVoid" android:layout_width="0dp" android:layout_height="64dp" android:layout_weight="1" android:text="VOID" app:backgroundTint="@color/primestack_light_gray" android:textColor="@color/primestack_danger" android:layout_marginEnd="6dp"/>
+      <Button android:id="@+id/btnTxRefund" android:layout_width="0dp" android:layout_height="64dp" android:layout_weight="1" android:text="REFUND" app:backgroundTint="@color/primestack_light_gray" android:textColor="@color/primestack_danger" android:layout_marginStart="6dp"/>
+    </LinearLayout>
+    <TextView android:id="@+id/tvSelectedType" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Selected: SALE - processed online" android:textColor="@color/primestack_primary" android:textSize="13sp" android:gravity="center" android:padding="10dp" android:layout_marginTop="12dp" android:background="@color/primestack_light_gray"/>
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="All transactions require an active internet connection." android:textColor="@color/primestack_gray" android:textSize="12sp" android:gravity="center" android:layout_marginTop="20dp"/>
+  </LinearLayout>
 </ScrollView>

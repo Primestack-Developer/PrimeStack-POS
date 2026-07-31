@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/primestack_light_gray">
@@ -36,7 +37,7 @@
                 android:text="NEW SALE"
                 android:textSize="13sp"
                 android:textStyle="bold"
-                android:background="@color/primestack_primary"
+                app:backgroundTint="@color/primestack_primary"
                 android:textColor="@color/white"
                 android:layout_marginEnd="6dp" />
 
@@ -48,7 +49,7 @@
                 android:text="MOTO ENTRY"
                 android:textSize="13sp"
                 android:textStyle="bold"
-                android:background="@color/white"
+                app:backgroundTint="@color/white"
                 android:textColor="@color/primestack_primary"
                 android:layout_marginStart="6dp" />
         </LinearLayout>
@@ -68,7 +69,7 @@
                 android:text="TAP TO PAY"
                 android:textSize="13sp"
                 android:textStyle="bold"
-                android:background="@color/white"
+                app:backgroundTint="@color/white"
                 android:textColor="@color/primestack_primary"
                 android:layout_marginEnd="6dp" />
 
@@ -80,7 +81,7 @@
                 android:text="TRANSACTIONS"
                 android:textSize="13sp"
                 android:textStyle="bold"
-                android:background="@color/white"
+                app:backgroundTint="@color/white"
                 android:textColor="@color/primestack_primary"
                 android:layout_marginStart="6dp" />
         </LinearLayout>
@@ -93,7 +94,7 @@
             android:text="SETTINGS"
             android:textSize="12sp"
             android:textStyle="bold"
-            android:background="@color/white"
+            app:backgroundTint="@color/white"
             android:textColor="@color/primestack_primary"
             android:layout_marginTop="10dp" />
 
@@ -105,7 +106,7 @@
             android:text="🔄 SYNC OFFLINE TRANSACTIONS"
             android:textSize="14sp"
             android:textStyle="bold"
-            android:background="@color/primestack_secondary"
+            app:backgroundTint="@color/primestack_secondary"
             android:textColor="@color/white"
             android:layout_marginTop="10dp" />
 
@@ -117,7 +118,7 @@
             android:text="CASH-OUT / WITHDRAW"
             android:textSize="13sp"
             android:textStyle="bold"
-            android:background="@color/primestack_accent"
+            app:backgroundTint="@color/primestack_accent"
             android:textColor="@color/white"
             android:layout_marginTop="10dp" />
 
@@ -129,7 +130,7 @@
             android:text="MY WALLET"
             android:textSize="13sp"
             android:textStyle="bold"
-            android:background="@color/primestack_success"
+            app:backgroundTint="@color/primestack_success"
             android:textColor="@color/white"
             android:layout_marginTop="8dp" />
 

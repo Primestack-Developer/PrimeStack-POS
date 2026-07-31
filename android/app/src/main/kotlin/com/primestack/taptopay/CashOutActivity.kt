@@ -101,6 +101,10 @@ class CashOutActivity : AppCompatActivity() {
 
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
+                runOnUiThread {
+                    Toast.makeText(this@CashOutActivity, "Cash-out could not be processed: check your internet connection and retry.", Toast.LENGTH_LONG).show()
+                }
+                return
                 // Cash-outs are also saved offline and synced later
                 CoroutineScope(Dispatchers.IO).launch {
                     OfflineSyncManager.saveOffline(this@CashOutActivity, json)

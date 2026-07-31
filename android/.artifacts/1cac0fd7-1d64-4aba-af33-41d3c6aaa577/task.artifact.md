@@ -1,0 +1,4 @@
+- [x] Update Room version to 2.8.4 in `app/build.gradle.kts`
+- [x] Re-enable KSP2 in `gradle.properties`
+- [x] Verify build with `./gradlew :app:kspReleaseKotlin`
+- [x] Update walkthrough

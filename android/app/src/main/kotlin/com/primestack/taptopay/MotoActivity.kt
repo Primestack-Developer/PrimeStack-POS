@@ -259,6 +259,11 @@ class MotoActivity : AppCompatActivity() {
 
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
+                runOnUiThread {
+                    Toast.makeText(this@MotoActivity, "Payment could not be processed: check your internet connection and retry.", Toast.LENGTH_LONG).show()
+                    resetButton()
+                }
+                return
                 CoroutineScope(Dispatchers.IO).launch {
                     OfflineSyncManager.saveOffline(this@MotoActivity, json)
                 }

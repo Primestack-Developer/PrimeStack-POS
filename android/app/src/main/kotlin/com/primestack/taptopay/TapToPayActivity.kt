@@ -240,6 +240,10 @@ class TapToPayActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
 
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
+                runOnUiThread {
+                    Toast.makeText(this@TapToPayActivity, "Payment could not be processed: check your internet connection and retry.", Toast.LENGTH_LONG).show()
+                }
+                return
                 // Network failed — if amount is within floor limit, store offline
                 if (amount <= floorLimitAED) {
                     CoroutineScope(Dispatchers.IO).launch {
