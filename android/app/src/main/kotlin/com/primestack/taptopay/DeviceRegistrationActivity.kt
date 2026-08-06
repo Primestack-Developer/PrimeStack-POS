@@ -70,12 +70,26 @@ class DeviceRegistrationActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
+            if (!isSecureUrl(serverUrl)) {
+                Toast.makeText(this, "Server URL must use HTTPS", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
             // Save the URL immediately so it's available even if registration fails
             prefs.saveServerUrl(serverUrl)
 
             btnRegister.isEnabled = false
             tvStatus.text = "Status: Connecting to $serverUrl..."
             registerTerminal(prefs, serverUrl, merchantId, terminalId, tvStatus)
+        }
+    }
+
+    private fun isSecureUrl(url: String): Boolean {
+        return try {
+            val parsed = android.net.Uri.parse(url)
+            parsed.scheme == "https" && parsed.host != null
+        } catch (ex: Exception) {
+            false
         }
     }
 

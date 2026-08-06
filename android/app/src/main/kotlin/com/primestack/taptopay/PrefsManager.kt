@@ -15,8 +15,8 @@ class PrefsManager(context: Context) {
         private const val KEY_MERCHANT_NAME   = "merchant_name"
         private const val KEY_SERVER_URL      = "server_url"
 
-        // Default points to the real backend — change via Settings screen
-        const val DEFAULT_SERVER_URL = "http://10.0.2.2:4000"
+        // Default is empty so production builds must configure a secure backend URL.
+        const val DEFAULT_SERVER_URL = ""
     }
 
     fun saveTerminalCredentials(

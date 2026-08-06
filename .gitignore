@@ -42,3 +42,5 @@ yarn-error.log*
 # Build outputs
 *.apk
 *.aab
+
+dashboard/build/

@@ -1,7 +1,12 @@
 import axios from "axios";
 
+const API_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === "development" ? "http://localhost:4000" : undefined);
+if (!API_URL) {
+  throw new Error("Missing required environment variable REACT_APP_API_URL. Set it before building the dashboard.");
+}
+
 export const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || "https://primestack-pos.onrender.com"
+  baseURL: API_URL
 });
 
 // Attach JWT token to every request automatically

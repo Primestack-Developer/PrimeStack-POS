@@ -25,7 +25,11 @@ import java.util.TimeZone
 
 class MotoActivity : AppCompatActivity() {
 
-    private val client     = OkHttpClient()
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+        .writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
     private var amount: Double     = 0.0
     private var txType: String     = "SALE"
     private var isOffline: Boolean = false

@@ -35,7 +35,7 @@
             android:id="@+id/serverUrlInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="http://192.168.x.x:4000"
+            android:hint="https://api.primestack.io"
             android:inputType="textUri"
             android:padding="16dp"
             android:background="@drawable/border_edittext"
@@ -44,7 +44,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Find your IP: open Command Prompt → type ipconfig → use IPv4 address"
+            android:text="Enter your HTTPS backend URL. HTTP is not permitted in production."
             android:textColor="@color/primestack_gray"
             android:textSize="11sp"
             android:layout_marginTop="4dp" />

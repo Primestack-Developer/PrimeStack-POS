@@ -87,13 +87,37 @@ import { generateToken, requireAuth } from './middleware/auth.js';
 
 dotenv.config();
 
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Environment variable ${name} is required`);
+  }
+  return value;
+}
+
+function validateProductionEnv(): void {
+  if (process.env.NODE_ENV === "production") {
+    requireEnv("MONGO_URI");
+    requireEnv("JWT_SECRET");
+    requireEnv("VAULT_KEY");
+    requireEnv("ADMIN_EMAIL");
+    requireEnv("ADMIN_PASSWORD");
+    requireEnv("ADMIN_PRIVATE_KEY");
+    if (!process.env.STRIPE_SECRET_KEY && !process.env.NMI_SECURITY_KEY && !(process.env.FINIX_USERNAME && process.env.FINIX_PASSWORD)) {
+      throw new Error("At least one production payment processor must be configured: STRIPE_SECRET_KEY, NMI_SECURITY_KEY, or FINIX_USERNAME+FINIX_PASSWORD");
+    }
+  }
+}
+
+validateProductionEnv();
+
 // Connect to MongoDB
 connectMongo().then(() => seedAdminUser());
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-async function getTerminalSecret(terminal_id: string): Promise<string> {
+async function getTerminalSecret(terminal_id: string): Promise<string | null> {
   const merchant = await MerchantModel.findOne({ "terminals.terminal_id": terminal_id, "terminals.status": "ACTIVE" });
   if (merchant) {
     const terminal = merchant.terminals.find(t => t.terminal_id === terminal_id && t.status === "ACTIVE");
@@ -101,15 +125,26 @@ async function getTerminalSecret(terminal_id: string): Promise<string> {
       return terminal.secret_key;
     }
   }
-  return process.env.TERMINAL_SECRET_KEY || "default_key";
+  if (process.env.TERMINAL_SECRET_KEY) {
+    return process.env.TERMINAL_SECRET_KEY;
+  }
+  return null;
 }
 
+const CORS_ORIGINS = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(",").map(origin => origin.trim()).filter(Boolean)
+  : [
+      'https://primestack-dashboard.onrender.com'
+    ];
+
 app.use(cors({
-  origin: [
-    'https://primestack-dashboard.onrender.com',
-    'http://localhost:3001',
-    'http://localhost:3000'
-  ],
+  origin: (origin, callback) => {
+    if (!origin || CORS_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS origin not allowed: ${origin}`));
+    }
+  },
   credentials: true
 }));
 
@@ -140,12 +175,12 @@ app.post('/auth/login', async (req, res) => {
 
     const admin = await AdminUserModel.findOne({ email: email.toLowerCase() });
     if (!admin) {
-      return res.status(401).json({ error: "Invalid credentials" });
+      return res.status(401).json({ error: "Username or password is incorrect" });
     }
 
     const valid = await verifyPassword(password, admin.password_hash);
     if (!valid) {
-      return res.status(401).json({ error: "Invalid credentials" });
+      return res.status(401).json({ error: "Username or password is incorrect" });
     }
 
     await AdminUserModel.updateOne({ email: email.toLowerCase() }, { last_login: new Date() });

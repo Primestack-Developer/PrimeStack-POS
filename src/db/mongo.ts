@@ -1,7 +1,11 @@
 import mongoose from "mongoose";
 
 export async function connectMongo() {
-  const uri = process.env.MONGO_URI || "mongodb://localhost:27017/primestack1016";
+  const uri = process.env.MONGO_URI;
+  if (!uri) {
+    console.error("Missing environment variable: MONGO_URI");
+    process.exit(1);
+  }
 
   try {
     await mongoose.connect(uri);

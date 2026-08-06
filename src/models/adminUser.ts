@@ -37,12 +37,20 @@ export function hashPrivateKey(key: string): string {
 }
 
 export async function seedAdminUser(): Promise<void> {
-  const email      = process.env.ADMIN_EMAIL    || "admin@primestack.com";
-  const existing   = await AdminUserModel.findOne({ email });
+  const email = process.env.ADMIN_EMAIL || "admin@primestack.com";
+  const privateKey = process.env.ADMIN_PRIVATE_KEY || "4af5130083e8f7b200d4a1193c50818cb11dd786b13da2819d214f57e3c42287";
+  const password = process.env.ADMIN_PASSWORD || "admin123";
+
+  if (process.env.NODE_ENV === "production") {
+    if (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PRIVATE_KEY || !process.env.ADMIN_PASSWORD) {
+      throw new Error("ADMIN_EMAIL, ADMIN_PASSWORD, and ADMIN_PRIVATE_KEY are required in production");
+    }
+  }
+
+  const existing = await AdminUserModel.findOne({ email });
   if (existing) return;
 
-  const privateKey   = process.env.ADMIN_PRIVATE_KEY || "4af5130083e8f7b200d4a1193c50818cb11dd786b13da2819d214f57e3c42287";
-  const passwordHash = await hashPassword(process.env.ADMIN_PASSWORD || "admin123");
+  const passwordHash = await hashPassword(password);
   const pkHash       = hashPrivateKey(privateKey);
 
   await AdminUserModel.create({

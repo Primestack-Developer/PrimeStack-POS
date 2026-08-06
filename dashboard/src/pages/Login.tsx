@@ -29,7 +29,7 @@ export const Login: React.FC = () => {
       saveSession(token, em);
       navigate("/");
     } catch (err: any) {
-      setError(err.response?.data?.error || "Login failed — check credentials");
+      setError(err.response?.data?.error || "Username or password is incorrect");
     } finally {
       setLoading(false);
     }

@@ -17,5 +17,25 @@ services:
         sync: false   # set this manually in Render dashboard
       - key: VAULT_KEY
         sync: false   # set this manually in Render dashboard
+      - key: JWT_SECRET
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: NMI_SECURITY_KEY
+        sync: false
+      - key: FINIX_USERNAME
+        sync: false
+      - key: FINIX_PASSWORD
+        sync: false
+      - key: WISE_API_KEY
+        sync: false
+      - key: WISE_WEBHOOK_PUBLIC_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        value: "https://primestack-dashboard.onrender.com"
       - key: ALERT_WEBHOOK
         value: ""

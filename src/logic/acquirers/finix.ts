@@ -43,21 +43,17 @@ export interface FinixPaymentResponse {
 export async function processFinixPayment(
   request: FinixPaymentRequest
 ): Promise<FinixPaymentResponse> {
-  try {
-    // If we don't have Finix credentials, fall back to demo mode
-    if (!FINIX_USERNAME || !FINIX_PASSWORD) {
-      console.log("[Finix] Credentials not set - using demo mode");
-      return {
-        success: true,
-        id: `FNX-DEMO-${Date.now()}`,
-        status: "SUCCEEDED",
-        message: "Demo payment successful (Finix not configured)",
-        authCode: "DEMO12",
-        rrn: "RR" + Date.now().toString().substring(2),
-        stan: Math.floor(Math.random() * 900000 + 100000).toString()
-      };
-    }
+  if (!FINIX_USERNAME || !FINIX_PASSWORD) {
+    const message = "Finix credentials are not configured. Real payments are disabled.";
+    console.error(`[Finix] ${message}`);
+    return {
+      success: false,
+      status: "FAILED",
+      message,
+    };
+  }
 
+  try {
     console.log(`[Finix] Processing payment: ${request.transactionId}`);
 
     // Convert amount to cents (Finix uses smallest currency unit)
@@ -110,16 +106,17 @@ export async function refundFinixPayment(
   transferId: string,
   amount: number
 ): Promise<FinixPaymentResponse> {
-  try {
-    if (!FINIX_USERNAME || !FINIX_PASSWORD) {
-      return {
-        success: true,
-        id: `FNX-DEMO-REFUND-${Date.now()}`,
-        status: "SUCCEEDED",
-        message: "Demo refund successful"
-      };
-    }
+  if (!FINIX_USERNAME || !FINIX_PASSWORD) {
+    const message = "Finix credentials are not configured. Refunds are disabled.";
+    console.error(`[Finix] ${message}`);
+    return {
+      success: false,
+      status: "FAILED",
+      message,
+    };
+  }
 
+  try {
     const amountInCents = Math.round(amount * 100);
 
     const refundData = {
@@ -156,17 +153,17 @@ export async function refundFinixPayment(
 export async function voidFinixPayment(
   transferId: string
 ): Promise<FinixPaymentResponse> {
-  try {
-    if (!FINIX_USERNAME || !FINIX_PASSWORD) {
-      return {
-        success: true,
-        id: `FNX-DEMO-VOID-${Date.now()}`,
-        status: "SUCCEEDED",
-        message: "Demo void successful"
-      };
-    }
+  if (!FINIX_USERNAME || !FINIX_PASSWORD) {
+    const message = "Finix credentials are not configured. Voids are disabled.";
+    console.error(`[Finix] ${message}`);
+    return {
+      success: false,
+      status: "FAILED",
+      message,
+    };
+  }
 
-    // To void in Finix, you reverse the transfer
+  // To void in Finix, you reverse the transfer
     const response = await axios.post(
       `${FINIX_API_URL}/transfers/${transferId}/reversals`,
       {},

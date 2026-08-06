@@ -1,7 +1,10 @@
 import crypto from "crypto";
 
-// 32 bytes (256 bits) AES key, stored in VAULT_KEY environment variable
-const key = Buffer.from(process.env.VAULT_KEY || "0".repeat(64), "hex");
+const vaultKeyHex = process.env.VAULT_KEY;
+if (!vaultKeyHex || vaultKeyHex.length !== 64 || !/^[0-9a-fA-F]+$/.test(vaultKeyHex)) {
+  throw new Error('VAULT_KEY must be a 64-character hex string');
+}
+const key = Buffer.from(vaultKeyHex, "hex");
 
 export function encryptPAN(pan: string) {
   const iv = crypto.randomBytes(16);

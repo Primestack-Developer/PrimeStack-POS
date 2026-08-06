@@ -42,5 +42,5 @@
       "last 1 safari version"
     ]
   },
-  "proxy": "https://primestack-pos.onrender.com"
+  "proxy": "http://localhost:4000"
 }

@@ -2,12 +2,21 @@
 title PrimeStack 101.6 — Payment Processor
 color 0A
 
+set "BACKEND_HOST=localhost"
+set "BACKEND_PORT=4000"
+set "DASHBOARD_HOST=localhost"
+set "DASHBOARD_PORT=3000"
+
 echo.
 echo  =========================================================
 echo    PrimeStack 101.6 Payment Processor
 echo    Payments. Simplified. Everywhere.
 echo  =========================================================
 echo.
+echo  [1/4] Checking MongoDB...
+echo        Make sure MongoDB is running on localhost:27017
+echo        or set MONGO_URI in .env to your connection string.
+timeout /t 2 /nobreak >nul
 
 powershell -Command "[Console]::Beep(800, 300)"
 
@@ -23,47 +32,41 @@ if not exist ".env" (
 )
 
 echo.
-echo  [1/4] Checking MongoDB...
-echo        Make sure MongoDB is running on localhost:27017
-echo        or set MONGO_URI in .env to your connection string.
-timeout /t 2 /nobreak >nul
-
-echo.
-echo  [2/4] Starting Backend API (port 4000)...
-start "PrimeStack Backend :4000" cmd /k "cd /d %~dp0 && npm run dev"
+echo  [2/4] Starting Backend API (%BACKEND_HOST%:%BACKEND_PORT%)...
+start "PrimeStack Backend :%BACKEND_PORT%" cmd /k "cd /d %~dp0 && set PORT=%BACKEND_PORT% && npm run dev"
 
 echo        Waiting for backend to start...
 timeout /t 6 /nobreak >nul
 
 echo.
-echo  [3/4] Starting Dashboard (port 3001)...
-start "PrimeStack Dashboard :3001" cmd /k "cd /d %~dp0dashboard && set PORT=3001 && npm start"
+echo  [3/4] Starting Dashboard (%DASHBOARD_HOST%:%DASHBOARD_PORT%)...
+start "PrimeStack Dashboard :%DASHBOARD_PORT%" cmd /k "cd /d %~dp0dashboard && set PORT=%DASHBOARD_PORT% && set HOST=%DASHBOARD_HOST% && npm start"
 
 echo        Waiting for dashboard to start...
 timeout /t 12 /nobreak >nul
 
 echo.
 echo  [4/4] Opening Dashboard in browser...
-start "" http://localhost:3001
+start "" http://%DASHBOARD_HOST%:%DASHBOARD_PORT%
 
 echo.
 echo  =========================================================
 echo    PrimeStack is running!
 echo.
-echo    Dashboard:          http://localhost:3001
-echo    Backend API:        http://localhost:4000
-echo    Health check:       http://localhost:4000/health
+echo    Dashboard:          http://%DASHBOARD_HOST%:%DASHBOARD_PORT%
+echo    Backend API:        http://%BACKEND_HOST%:%BACKEND_PORT%
+echo    Health check:       http://%BACKEND_HOST%:%BACKEND_PORT%/health
 echo.
 echo    Key endpoints:
-echo    Transactions:       http://localhost:4000/transactions
-echo    Wallets:            http://localhost:4000/wallet/{merchant_id}
-echo    Payouts (admin):    http://localhost:4000/admin/payouts
-echo    Offline queue:      http://localhost:4000/offline/status
-echo    Issuers:            http://localhost:4000/issuer
-echo    Cash-outs:          http://localhost:4000/cashout/all
+echo    Transactions:       http://%BACKEND_HOST%:%BACKEND_PORT%/transactions
+echo    Wallets:            http://%BACKEND_HOST%:%BACKEND_PORT%/wallet/{merchant_id}
+echo    Payouts (admin):    http://%BACKEND_HOST%:%BACKEND_PORT%/admin/payouts
+echo    Offline queue:      http://%BACKEND_HOST%:%BACKEND_PORT%/offline/status
+echo    Issuers:            http://%BACKEND_HOST%:%BACKEND_PORT%/issuer
+echo    Cash-outs:          http://%BACKEND_HOST%:%BACKEND_PORT%/cashout/all
 echo.
-echo    Android POS:        http://10.0.2.2:4000  (emulator)
-echo                        http://{your-ip}:4000  (real device)
+echo    Android POS:        http://10.0.2.2:%BACKEND_PORT%  (emulator)
+echo                        http://{your-ip}:%BACKEND_PORT%  (real device)
 echo  =========================================================
 echo.
 
