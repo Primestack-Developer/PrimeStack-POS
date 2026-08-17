@@ -37,9 +37,9 @@ export function hashPrivateKey(key: string): string {
 }
 
 export async function seedAdminUser(): Promise<void> {
-  const email = process.env.ADMIN_EMAIL || "admin@primestack.com";
+  const email = process.env.ADMIN_EMAIL || "admin";
   const privateKey = process.env.ADMIN_PRIVATE_KEY || "4af5130083e8f7b200d4a1193c50818cb11dd786b13da2819d214f57e3c42287";
-  const password = process.env.ADMIN_PASSWORD || "admin123";
+  const password = process.env.ADMIN_PASSWORD || "admin1234";
 
   if (process.env.NODE_ENV === "production") {
     if (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PRIVATE_KEY || !process.env.ADMIN_PASSWORD) {
@@ -65,3 +65,4 @@ export async function seedAdminUser(): Promise<void> {
   console.log(`✅  Admin user created: ${email}`);
   console.log(`✅  Admin wallet created`);
 }
+
